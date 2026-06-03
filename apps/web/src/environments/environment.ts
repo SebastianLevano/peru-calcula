@@ -1,6 +1,6 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:5000',
+  apiUrl: 'http://localhost:5117',
   adsense: {
     clientId: '',          // vacío en dev — no carga AdSense
     enabled:  false,

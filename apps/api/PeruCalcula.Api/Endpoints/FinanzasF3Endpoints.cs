@@ -42,7 +42,7 @@ public static class FinanzasF3Endpoints
         decimal monto,
         int     plazo,
         AppDbContext db,
-        PeruCalculaMetrics? metrics,
+        [Microsoft.AspNetCore.Mvc.FromServices] PeruCalculaMetrics? metrics,
         CancellationToken ct)
     {
         tipo = tipo.ToLowerInvariant();

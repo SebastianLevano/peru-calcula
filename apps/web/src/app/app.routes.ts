@@ -24,5 +24,10 @@ export const routes: Routes = [
   { path: 'guias',       loadComponent: () => import('./features/guias/guias-listado.component').then(m => m.GuiasListadoComponent) },
   { path: 'guias/:slug', loadComponent: () => import('./features/guias/guia-detalle.component').then(m => m.GuiaDetalleComponent) },
 
+  // Legales
+  { path: 'privacidad', loadComponent: () => import('./features/legal/privacidad.component').then(m => m.PrivacidadComponent) },
+  { path: 'terminos',   loadComponent: () => import('./features/legal/terminos.component').then(m => m.TerminosComponent) },
+  { path: 'acerca',     loadComponent: () => import('./features/legal/acerca.component').then(m => m.AcercaComponent) },
+
   { path: '**', redirectTo: '' },
 ];

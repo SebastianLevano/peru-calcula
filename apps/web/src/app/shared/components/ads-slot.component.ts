@@ -5,28 +5,31 @@ import { FeatureFlagsService } from '../../core/feature-flags.service';
 import { environment } from '../../../environments/environment';
 
 /**
- * Slot de publicidad CLS-safe (ADR-19). Activo en F4.
- * Solo renderiza el anuncio si: feature flag adsEnabled + consentimiento aceptado.
- * El espacio físico se reserva siempre para evitar layout shift.
+ * Slot de publicidad CLS-safe (ADR-19). Etiqueta "Publicidad" visible, separado
+ * visualmente del contenido de confianza mediante hairline y fondo paper.
+ *
+ * ZONAS PERMITIDAS (nunca entre formulario y ResultCard):
+ *   - Después del ResultCard
+ *   - Páginas de guías
+ *   - Footer / entre secciones informativas
  */
 @Component({
   selector: 'app-ads-slot',
   standalone: true,
   template: `
-    <div
-      [class]="containerClass"
-      [attr.aria-hidden]="!shouldShowAd"
-      data-slot="ads">
-
-      @if (shouldShowAd && adsEnabled) {
-        <ins class="adsbygoogle"
-             style="display:block"
-             [attr.data-ad-client]="adsenseClientId"
-             [attr.data-ad-slot]="adSlotId"
-             data-ad-format="auto"
-             data-full-width-responsive="true">
-        </ins>
-      }
+    <div class="border-t border-line bg-paper" data-slot="ads">
+      <p class="px-3 pt-2 text-[10px] font-medium uppercase tracking-widest text-ink-500">Publicidad</p>
+      <div [class]="reserveClass" [attr.aria-hidden]="!shouldShowAd">
+        @if (shouldShowAd && adsEnabled) {
+          <ins class="adsbygoogle block"
+               style="display:block"
+               [attr.data-ad-client]="adsenseClientId"
+               [attr.data-ad-slot]="adSlotId"
+               data-ad-format="auto"
+               data-full-width-responsive="true">
+          </ins>
+        }
+      </div>
     </div>
   `,
 })
@@ -48,23 +51,20 @@ export class AdsSlotComponent implements OnInit {
         && !!this.adsenseClientId;
   }
 
-  get containerClass(): string {
+  get reserveClass(): string {
     const heights: Record<string, string> = {
       banner:  'h-[90px]',
       sidebar: 'h-[250px]',
       inline:  'h-[100px]',
     };
-    return `block w-full ${heights[this.size] ?? heights['banner']} overflow-hidden`;
+    return `w-full overflow-hidden ${heights[this.size] ?? heights['banner']}`;
   }
 
   ngOnInit() {
     if (isPlatformBrowser(this.platform) && this.shouldShowAd) {
-      // Activa el anuncio AdSense después de que el DOM se haya renderizado
       try {
         ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-      } catch {
-        // AdSense no disponible aún — se intentará cuando se inicialice el script
-      }
+      } catch { /* AdSense no disponible aún */ }
     }
   }
 }

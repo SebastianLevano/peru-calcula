@@ -1,39 +1,54 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ApiClientService } from '../../../core/api-client.service';
 import { SeoService } from '../../../core/seo.service';
 import { AnalyticsService } from '../../../core/analytics.service';
 import { ResultCardComponent, DesgloseLine } from '../../../shared/components/result-card.component';
 import { CalcInputComponent } from '../../../shared/ui/calc-input.component';
+import { AlertComponent } from '../../../shared/components/alert.component';
+import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
+import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
+import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
 
 @Component({
   selector: 'app-rer',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ResultCardComponent, CalcInputComponent],
+  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
   template: `
-    <main class="max-w-2xl mx-auto py-10 px-4 space-y-8">
-      <header>
-        <h1 class="text-3xl font-bold text-gray-900">Calculadora RER</h1>
-        <p class="mt-2 text-gray-600 text-sm">Pago mensual del Régimen Especial de Renta: 1.5% sobre ingresos netos (Art. 120 TUO LIR).</p>
-      </header>
-      <form [formGroup]="form" (ngSubmit)="calcular()" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
+    <app-calc-page-header
+      titulo="Calculadora RER"
+      descripcion="Pago mensual del Régimen Especial de Renta: 1.5% sobre ingresos netos (art. 120 TUO LIR)."
+      modulo="tributario" />
+
+    <main class="mx-auto max-w-2xl px-4 py-8 space-y-8">
+      <form [formGroup]="form" (ngSubmit)="calcular()" class="rounded-card border border-line bg-surface p-6 shadow-card space-y-5">
         <app-calc-input label="Ingresos netos del mes" inputId="ingresos" prefix="S/" placeholder="10000" [required]="true" formControlName="ingresosMensuales" />
-        <button type="submit" [disabled]="form.invalid || calculando()"
-          class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors">
-          {{ calculando() ? 'Calculando…' : 'Calcular impuesto RER' }}
-        </button>
+        <div class="flex gap-3">
+          <button type="submit" [disabled]="form.invalid || calculando()"
+            class="flex-1 rounded-input bg-primary-700 py-3 text-sm font-semibold text-white hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            @if (calculando()) { <span class="inline-flex items-center justify-center gap-2"><svg class="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4z"/></svg>Calculando…</span>
+          } @else { Calcular impuesto RER }
+          </button>
+          <button type="button" (click)="limpiar()"
+            class="rounded-input border border-line bg-surface px-5 text-sm font-medium text-ink-600
+                   hover:bg-paper hover:text-ink-900 transition-colors
+                   focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+            Limpiar
+          </button>
+        </div>
       </form>
-      @if (error()) { <div class="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700" role="alert">{{ error() }}</div> }
+      @if (error()) { <app-alert tone="error">{{ error() }}</app-alert> }
+      @if (!resultado() && !calculando() && !error()) { <app-empty-state titulo="Ingresa tus ingresos para calcular el impuesto RER" /> }
       @if (resultado()) {
-        <app-result-card titulo="Impuesto mensual RER" [montoFinal]="resultado()!.resultado.impuesto" [desglose]="toDesglose(resultado()!.desglose)" [confianza]="resultado()!.confianza" />
+        <app-result-card titulo="Impuesto mensual RER" [montoFinal]="resultado()!.resultado.impuesto" [desglose]="toDesglose(resultado()!.desglose)" [confianza]="resultado()!.confianza" calculadoraSlug="rer" modulo="tributario" />
         @if (resultado()!.resultado.superaTopeAnual) {
-          <div class="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-            <strong>Atención:</strong> tu proyección anual supera el tope del RER (S/ 525,000). Considera cambiar al Régimen MYPE Tributario.
-          </div>
+          <app-alert tone="warn" titulo="Atención: superas el tope del RER">Tu proyección anual supera S/ 525,000. Considera migrar al Régimen MYPE Tributario.</app-alert>
         }
+        <app-ads-slot size="banner" />
       }
-    </main>`,
+    </main>
+  `,
 })
 export class RerComponent implements OnInit {
   private readonly api = inject(ApiClientService); private readonly seo = inject(SeoService);
@@ -41,9 +56,15 @@ export class RerComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<any>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ ingresosMensuales: [null as number | null, [Validators.required, Validators.min(1)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora RER', description: 'Calcula el pago mensual del Régimen Especial de Renta (RER): 1.5% de ingresos netos.' });
+    this.seo.set({ title: 'Calculadora RER', description: 'Calcula el pago mensual del Régimen Especial de Renta (RER): 1.5% de ingresos netos.', canonical: '/calculadora-rer' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'rer', modulo: 'tributario' });
   }
+  limpiar() {
+    this.form.reset({ ingresosMensuales: null });
+    this.resultado.set(null);
+    this.error.set(null);
+  }
+
   calcular() {
     if (this.form.invalid) return;
     this.calculando.set(true); this.error.set(null);

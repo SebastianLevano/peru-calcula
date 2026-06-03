@@ -1,37 +1,36 @@
 import { Component, input, computed, signal, OnInit } from '@angular/core';
-import { CommonModule, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 
 @Component({
   selector: 'app-input-meses',
   standalone: true,
-  imports: [CommonModule, DecimalPipe],
+  imports: [DecimalPipe],
   template: `
     <div class="space-y-2">
-      <p class="text-sm font-medium text-gray-700">{{ label() }}</p>
-      <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <p class="text-sm font-medium text-ink-700">{{ label() }}</p>
+      <div class="grid grid-cols-3 gap-2 sm:grid-cols-6">
         @for (mes of mesesLabels(); track mes + $index; let i = $index) {
           <div class="space-y-0.5">
-            <label class="block text-xs text-gray-500 text-center">{{ mes }}</label>
+            <label class="block text-center text-xs text-ink-500">{{ mes }}</label>
             <div class="relative">
-              <span class="absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">S/</span>
+              <span class="pointer-events-none absolute left-1.5 top-1/2 -translate-y-1/2 select-none text-xs font-medium text-ink-600">S/</span>
               <input
                 type="number" min="0" step="0.01"
+                inputmode="decimal"
                 [value]="_valores()[i] || ''"
                 (input)="setValor(i, $event)"
                 placeholder="0"
-                class="w-full pl-6 pr-1 py-1.5 rounded border border-gray-300 text-xs text-right
-                       focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                class="w-full rounded-input border border-line bg-surface py-1.5 pl-6 pr-1 text-right text-xs text-ink-900
+                       placeholder-ink-500
+                       hover:border-ink-500
+                       focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600/20" />
             </div>
           </div>
         }
       </div>
-      <div class="flex justify-between items-center text-xs text-gray-600
-                  bg-white rounded border border-gray-200 px-3 py-1.5">
-        <span>Total: <strong>S/ {{ total() | number:'1.2-2' }}</strong></span>
-        <span>
-          Promedio mensual:
-          <strong class="text-blue-700">S/ {{ promedio() | number:'1.2-2' }}</strong>
-        </span>
+      <div class="flex items-center justify-between rounded-input border border-line bg-paper px-3 py-1.5 text-xs text-ink-600">
+        <span>Total: <strong class="tabular text-ink-900">S/ {{ total() | number:'1.2-2' }}</strong></span>
+        <span>Promedio: <strong class="tabular text-primary-700">S/ {{ promedio() | number:'1.2-2' }}</strong></span>
       </div>
     </div>
   `,

@@ -1,33 +1,51 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 
 /**
- * Muestra señales de confianza: fuente normativa, fecha actualización y versión de parámetros (ADR-20).
+ * Ficha de auditoría (ADR-20): el activo de confianza, protagonista.
+ * Evoca el pie de una resolución oficial: fuente · versión · fecha de la norma.
+ * Contraste AA obligatorio; iconografía de verificación.
  */
 @Component({
   selector: 'app-trust-badge',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DatePipe],
   template: `
-    <div class="flex flex-wrap gap-2 text-xs text-gray-500 mt-2">
-      @if (fuente) {
-        <span class="inline-flex items-center gap-1">
-          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+    <section class="rounded-card border border-line bg-paper p-4" aria-label="Origen normativo del cálculo">
+      <div class="flex items-center gap-2">
+        <span class="flex h-6 w-6 items-center justify-center rounded-full bg-primary-600 text-white">
+          <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z" clip-rule="evenodd"/>
           </svg>
-          Fuente: {{ fuente }}
         </span>
-      }
-      @if (fechaActualizacion) {
-        <span>· Actualizado: {{ fechaActualizacion }}</span>
-      }
-      @if (version) {
-        <span>· v{{ version }}</span>
-      }
-      <span class="block w-full mt-1 text-gray-400">
-        Cálculo referencial. No constituye asesoría legal o tributaria.
-      </span>
-    </div>
+        <p class="font-display text-sm font-semibold text-ink-900">Calculado con la norma vigente</p>
+      </div>
+
+      <dl class="mt-3 grid grid-cols-1 gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+        @if (fuente) {
+          <div class="flex items-baseline justify-between gap-3 border-b border-line/70 pb-1.5">
+            <dt class="text-ink-500">Fuente / norma</dt>
+            <dd class="text-right font-medium text-ink-900">{{ fuente }}</dd>
+          </div>
+        }
+        @if (version) {
+          <div class="flex items-baseline justify-between gap-3 border-b border-line/70 pb-1.5">
+            <dt class="text-ink-500">Versión de parámetros</dt>
+            <dd class="text-right font-medium text-ink-900">v{{ version }}</dd>
+          </div>
+        }
+        @if (fechaActualizacion) {
+          <div class="flex items-baseline justify-between gap-3 border-b border-line/70 pb-1.5">
+            <dt class="text-ink-500">Actualización normativa</dt>
+            <dd class="text-right font-medium text-ink-900">{{ fechaActualizacion | date: 'd \\'de\\' MMMM \\'de\\' y' : '' : 'es' }}</dd>
+          </div>
+        }
+      </dl>
+
+      <p class="mt-3 text-xs text-ink-500">
+        Cálculo referencial basado en la normativa citada. No constituye asesoría legal ni tributaria.
+      </p>
+    </section>
   `,
 })
 export class TrustBadgeComponent {

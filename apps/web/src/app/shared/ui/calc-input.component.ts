@@ -1,24 +1,25 @@
 import { Component, Input, forwardRef } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, ReactiveFormsModule } from '@angular/forms';
-import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-calc-input',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   providers: [{ provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => CalcInputComponent), multi: true }],
   template: `
     <div class="space-y-1">
-      <label [for]="inputId" class="block text-sm font-medium text-gray-700">
+      <label [for]="inputId" class="block text-sm font-medium text-ink-700">
         {{ label }}
-        @if (required) { <span class="text-red-500" aria-hidden="true">*</span> }
+        @if (required) { <span class="text-error-600" aria-hidden="true">*</span> }
       </label>
       @if (hint) {
-        <p class="text-xs text-gray-500" [id]="inputId + '-hint'">{{ hint }}</p>
+        <p class="text-xs text-ink-500" [id]="inputId + '-hint'">{{ hint }}</p>
       }
       <div class="relative">
         @if (prefix) {
-          <span class="absolute inset-y-0 left-3 flex items-center text-gray-500 text-sm select-none">{{ prefix }}</span>
+          <span class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm font-medium text-ink-600 select-none">
+            {{ prefix }}
+          </span>
         }
         <input
           [id]="inputId"
@@ -28,6 +29,7 @@ import { CommonModule } from '@angular/common';
           [step]="step"
           [placeholder]="placeholder"
           [class]="inputClass"
+          [attr.inputmode]="inputmode"
           [attr.aria-describedby]="hint ? inputId + '-hint' : null"
           [attr.aria-required]="required"
           [value]="value"
@@ -50,14 +52,24 @@ export class CalcInputComponent implements ControlValueAccessor {
   @Input() step     = 1;
 
   value: number | string = '';
-  onChange = (_: unknown) => {};
+  onChange  = (_: unknown) => {};
   onTouched = () => {};
 
-  get inputClass() {
-    const pad = this.prefix ? 'pl-9' : 'pl-3';
-    return `block w-full ${pad} pr-3 py-2.5 border border-gray-300 rounded-lg text-sm
-            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-            disabled:bg-gray-50 disabled:text-gray-500`.replace(/\s+/g, ' ');
+  get inputmode(): string {
+    if (this.type !== 'number') return 'text';
+    return (this.step === 1 && !this.min) ? 'numeric' : 'decimal';
+  }
+
+  get inputClass(): string {
+    const pad = this.prefix ? 'pl-9' : 'pl-3.5';
+    return [
+      `block w-full ${pad} pr-3.5 py-2.5 rounded-input border border-line bg-surface`,
+      'text-sm text-ink-900 placeholder-ink-500',
+      'transition-colors',
+      'hover:border-ink-500',
+      'focus:outline-none focus:border-primary-600 focus:ring-2 focus:ring-primary-600/20',
+      'disabled:bg-paper disabled:text-ink-500 disabled:cursor-not-allowed',
+    ].join(' ');
   }
 
   writeValue(val: unknown) { this.value = val as number; }

@@ -1,11 +1,91 @@
-@import "tailwindcss";
+/* ── Fuentes self-hosted (variable, font-display: swap, sin Google) ──────────
+   wght.css usa unicode-range → el navegador solo descarga el subset latin.   */
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/source-serif-4/wght.css";
 
-/* Indicar a Tailwind v4 dónde buscar clases en los templates Angular */
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+@plugin "@tailwindcss/typography";
+
+/* Buscar clases en los templates Angular (Tailwind v4) */
 @source "../src/**/*.{ts,html}";
 
-/* Fuentes */
+/* ════════════════════════════════════════════════════════════════════════
+   Sistema de diseño — Dirección "Boleta"
+   Documental, autoridad fiscal-privada, montos tabulares, hairlines.
+   Tono profesional-privado (publicación financiera seria), NO gubernamental.
+   ════════════════════════════════════════════════════════════════════════ */
+@theme {
+  /* — Tipografía — Source Serif 4 solo para autoridad; Inter para la UI — */
+  --font-display: "Source Serif 4 Variable", Georgia, "Times New Roman", serif;
+  --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
+
+  /* — Tinta / texto (contraste AA sobre paper/surface) — */
+  --color-ink-900: #14201d; /* títulos, montos */
+  --color-ink-700: #283a35; /* texto fuerte */
+  --color-ink-600: #45524e; /* texto secundario — AA sobre paper */
+  --color-ink-500: #5b6863; /* terciario — AA sobre blanco (4.6:1) */
+
+  /* — Verde fiscal (primario): dinero + calma, no bank-blue — */
+  --color-primary-50:  #e9f3f1;
+  --color-primary-100: #cfe6e1;
+  --color-primary-200: #a3d0c7;
+  --color-primary-500: #0d8276;
+  --color-primary-600: #0d6e63;
+  --color-primary-700: #0a564e;
+  --color-primary-800: #08433d;
+
+  /* — Ámbar "sol": acento de acción puntual, nunca dominante — */
+  --color-accent-50:  #fbf0e2;
+  --color-accent-500: #d4791a;
+  --color-accent-600: #b85f0e; /* AA sobre blanco para texto */
+  --color-accent-700: #934b0b;
+
+  /* — Superficies (papel cálido) — */
+  --color-paper:   #faf9f5; /* fondo de página */
+  --color-surface: #ffffff; /* cards/documento */
+  --color-line:    #e6e2d6; /* hairline cálido */
+  --color-line-strong: #d6d1c2;
+
+  /* — Semánticos — */
+  --color-ok-600:    #0a7d52;
+  --color-ok-50:     #e7f4ee;
+  --color-warn-600:  #b45309;
+  --color-warn-50:   #fdf2e3;
+  --color-error-600: #a3341f;
+  --color-error-700: #8a2a18;
+  --color-error-50:  #fbeae6;
+
+  /* — Forma — radios pequeños, documental (no burbujeante) — */
+  --radius-input: 0.375rem;
+  --radius-card:  0.5rem;
+  --radius-pill:  9999px;
+
+  /* — Elevación — hairline-first, sombras mínimas — */
+  --shadow-card: 0 1px 2px rgb(20 32 29 / 0.05), 0 1px 1px rgb(20 32 29 / 0.04);
+  --shadow-pop:  0 8px 24px -8px rgb(20 32 29 / 0.18);
+}
+
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink-700);
+    font-family: var(--font-sans);
+  }
+  /* Source Serif 4 SOLO en headings de autoridad (Ajuste #9) */
+  h1, h2 {
+    font-family: var(--font-display);
+    color: var(--color-ink-900);
+    letter-spacing: -0.01em;
+  }
+  /* Montos y cifras alineadas como un estado de cuenta */
+  .monto, .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
   }
 }

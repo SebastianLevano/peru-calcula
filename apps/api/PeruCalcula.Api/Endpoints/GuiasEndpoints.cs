@@ -17,11 +17,30 @@ public static class GuiasEndpoints
 
         // Admin CRUD
         var adm = app.MapGroup("/api/v1/admin/guias").WithTags("Admin").RequireAuthorization("admin");
-        adm.MapPost  ("/",       CrearGuia)   .WithName("CrearGuia");
-        adm.MapPut   ("/{id}",   ActualizarGuia).WithName("ActualizarGuia");
-        adm.MapDelete("/{id}",   EliminarGuia).WithName("EliminarGuia");
+        adm.MapGet   ("/",       ListarGuiasAdmin).WithName("ListarGuiasAdmin");
+        adm.MapPost  ("/",       CrearGuia)       .WithName("CrearGuia");
+        adm.MapPut   ("/{id}",   ActualizarGuia)  .WithName("ActualizarGuia");
+        adm.MapDelete("/{id}",   EliminarGuia)    .WithName("EliminarGuia");
 
         return app;
+    }
+
+    // ── Admin ─────────────────────────────────────────────────────────────────
+
+    private static async Task<IResult> ListarGuiasAdmin(AppDbContext db, CancellationToken ct)
+    {
+        var guias = await db.Guias
+            .Where(g => g.Estado != "archivado")
+            .OrderByDescending(g => g.ActualizadoEn)
+            .Select(g => new
+            {
+                g.Id, g.Slug, g.Titulo, g.Resumen,
+                g.CalculadoraRelacionada, g.Estado,
+                actualizadoEn = g.ActualizadoEn,
+            })
+            .ToListAsync(ct);
+
+        return Results.Ok(guias);
     }
 
     // ── Públicos ──────────────────────────────────────────────────────────────

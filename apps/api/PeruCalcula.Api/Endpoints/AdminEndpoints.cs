@@ -411,7 +411,7 @@ public static class AdminEndpoints
             .ToListAsync(ct);
 
         // Eventos de hoy en tiempo real (aún no rollupados)
-        var hoyInicio    = new DateTimeOffset(DateTime.Today, TimeSpan.Zero);
+        var hoyInicio    = new DateTimeOffset(DateTime.UtcNow.Date, TimeSpan.Zero);
         var eventosHoy   = await db.AnalyticsEventos
             .Where(e => e.FechaUtc >= hoyInicio)
             .GroupBy(e => new { e.CalculadoraSlug, e.Modulo, e.TipoEvento })

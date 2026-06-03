@@ -2,6 +2,7 @@ import { Component, inject, signal, OnInit } from '@angular/core';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { AdminApiService } from '../admin-api.service';
+import { ApiClientService } from '../../../core/api-client.service';
 
 interface Guia { id: number; slug: string; titulo: string; resumen: string; estado: string; actualizadoEn: string; }
 
@@ -117,8 +118,9 @@ interface Guia { id: number; slug: string; titulo: string; resumen: string; esta
   `,
 })
 export class AdminGuiasComponent implements OnInit {
-  private readonly api = inject(AdminApiService);
-  private readonly fb  = inject(FormBuilder);
+  private readonly adminApi = inject(AdminApiService);
+  private readonly pubApi   = inject(ApiClientService);   // para leer guías (endpoint público)
+  private readonly fb       = inject(FormBuilder);
 
   readonly guias      = signal<Guia[]>([]);
   readonly cargando   = signal(true);
@@ -143,7 +145,7 @@ export class AdminGuiasComponent implements OnInit {
 
   cargar() {
     this.cargando.set(true);
-    this.api.get<Guia[]>('/guias').subscribe({
+    this.adminApi.get<Guia[]>('/guias').subscribe({
       next: (g) => { this.guias.set(g); this.cargando.set(false); },
       error: () => { this.error.set('Error al cargar guías.'); this.cargando.set(false); },
     });
@@ -160,8 +162,8 @@ export class AdminGuiasComponent implements OnInit {
     this.editandoId.set(g.id);
     this.formVisible.set(true);
     this.ok.set(''); this.error.set('');
-    // Cargar el markdown completo
-    this.api.get<any>(`/guias/${g.slug}`).subscribe({
+    // Cargar el markdown completo (endpoint público, único que devuelve cuerpoMarkdown por slug)
+    this.pubApi.get<any>(`/guias/${g.slug}`).subscribe({
       next: (d) => this.form.patchValue({
         titulo: d.titulo, slug: d.slug, resumen: d.resumen,
         cuerpoMarkdown: d.cuerpoMarkdown, calculadoraRelacionada: d.calculadoraRelacionada ?? '',
@@ -176,8 +178,8 @@ export class AdminGuiasComponent implements OnInit {
     const v = this.form.value;
     const id = this.editandoId();
     const req = id
-      ? this.api.put(`/guias/${id}`, v)
-      : this.api.post('/guias', v);
+      ? this.adminApi.put(`/guias/${id}`, v)
+      : this.adminApi.post('/guias', v);
 
     req.subscribe({
       next: () => {
@@ -192,7 +194,7 @@ export class AdminGuiasComponent implements OnInit {
 
   archivar(g: Guia) {
     if (!confirm(`¿Archivar "${g.titulo}"?`)) return;
-    this.api.delete(`/guias/${g.id}`).subscribe({
+    this.adminApi.delete(`/guias/${g.id}`).subscribe({
       next: () => { this.ok.set(`"${g.titulo}" archivada.`); setTimeout(() => this.ok.set(''), 3000); this.cargar(); },
       error: () => this.error.set('Error al archivar.'),
     });

@@ -59,7 +59,7 @@ public static class LaboralF2Endpoints
         var resultado = GratificacionCalculadora.Calcular(
             new GratificacionInput(
                 new Money(req.RemuneracionBasica), req.TieneHijos, meses, dias, req.AportaAEps,
-                new Money(req.PromedioComisiones), new Money(req.OtrosBonos)), parms);
+                new Money(req.PromedioHorasExtras), new Money(req.PromedioComisiones), new Money(req.OtrosBonos)), parms);
 
         var desglose = new List<object>
         {
@@ -67,6 +67,8 @@ public static class LaboralF2Endpoints
             new { concepto = "Asignación familiar",   valor = resultado.AsignacionFamiliar.Monto },
         };
 
+        if (resultado.PromedioHorasExtras.Monto > 0)
+            desglose.Add(new { concepto = "Promedio horas extras/mes", valor = resultado.PromedioHorasExtras.Monto });
         if (resultado.PromedioComisiones.Monto > 0)
             desglose.Add(new { concepto = "Promedio comisiones/mes",   valor = resultado.PromedioComisiones.Monto });
         if (resultado.OtrosBonos.Monto > 0)
@@ -212,12 +214,13 @@ public static class LaboralF2Endpoints
 public sealed record GratificacionRequest(
     decimal   RemuneracionBasica,
     bool      TieneHijos,
-    DateOnly? FechaIngreso      = null,
-    int?      MesesCompletados  = null,
-    int?      DiasAdicionales   = null,
-    bool      AportaAEps        = false,
-    decimal   PromedioComisiones = 0,
-    decimal   OtrosBonos         = 0
+    DateOnly? FechaIngreso       = null,
+    int?      MesesCompletados   = null,
+    int?      DiasAdicionales    = null,
+    bool      AportaAEps         = false,
+    decimal   PromedioHorasExtras = 0,
+    decimal   PromedioComisiones  = 0,
+    decimal   OtrosBonos          = 0
 );
 public sealed record VacacionesRequest(
     decimal   RemuneracionBasica,
@@ -239,6 +242,7 @@ public sealed class GratificacionRequestValidator : AbstractValidator<Gratificac
         RuleFor(x => x.RemuneracionBasica).GreaterThan(0);
         RuleFor(x => x.MesesCompletados).InclusiveBetween(0, 6).When(x => x.MesesCompletados.HasValue);
         RuleFor(x => x.DiasAdicionales).InclusiveBetween(0, 29).When(x => x.DiasAdicionales.HasValue);
+        RuleFor(x => x.PromedioHorasExtras).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PromedioComisiones).GreaterThanOrEqualTo(0);
         RuleFor(x => x.OtrosBonos).GreaterThanOrEqualTo(0);
         RuleFor(x => x)

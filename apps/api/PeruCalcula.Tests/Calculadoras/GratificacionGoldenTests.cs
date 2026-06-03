@@ -46,4 +46,24 @@ public class GratificacionGoldenTests
         Assert.Equal(94.61m,   r.BonificacionExtraordinaria.Monto);
         Assert.Equal(1496.28m, r.TotalDeposito.Monto);
     }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void Caso_ConHorasExtras_Regulares_6Meses()
+    {
+        // HH.EE. regulares (≥ 3 meses) integran RC — Art. 3 Ley 27735
+        // RC = 2500 + 0 (sin hijos) + 400 (HH.EE.) + 200 (comisiones) = 3100
+        // Grati = 3100/6*6 = 3100; Bonif = 9% * 3100 = 279; Total = 3379
+        var r = GratificacionCalculadora.Calcular(
+            new GratificacionInput(
+                new Money(2500m), false, 6, 0,
+                PromedioHorasExtras: new Money(400m),
+                PromedioComisiones:  new Money(200m)), Params);
+
+        Assert.Equal(3100m, r.RemuneracionComputable.Monto);
+        Assert.Equal(400m,  r.PromedioHorasExtras.Monto);
+        Assert.Equal(3100m, r.Gratificacion.Monto);
+        Assert.Equal(279m,  r.BonificacionExtraordinaria.Monto);
+        Assert.Equal(3379m, r.TotalDeposito.Monto);
+    }
 }

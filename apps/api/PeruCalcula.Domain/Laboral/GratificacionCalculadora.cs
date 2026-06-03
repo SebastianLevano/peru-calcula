@@ -6,9 +6,8 @@ namespace PeruCalcula.Domain.Laboral;
 /// Calcula gratificación ordinaria (Ley 27735) y bonificación extraordinaria (Ley 29351).
 ///
 /// Remuneración computable (Ley 27735, Art. 3):
-///   RC = básico + asig.familiar + promedio de comisiones del semestre + otros bonos regulares
-///   Nota: las horas extras NO integran la RC de gratificación (solo CTS), salvo que sean
-///   percibidas regularmente por al menos 3 meses en el semestre.
+///   RC = básico + asig.familiar + promedio de horas extras + comisiones + otros bonos regulares
+///   Las horas extras integran la RC solo si son percibidas regularmente (≥ 3 meses del semestre).
 ///
 /// Gratificación  = (RC / 6) × meses_completos + (RC / 180) × días_adicionales
 /// Bonif.Ext.     = Gratificación × %EsSalud (o EPS), equivalente al aporte que el
@@ -20,14 +19,15 @@ public static class GratificacionCalculadora
     {
         Validar(input);
 
-        var asignacionFamiliar = input.TieneHijos
+        var asignacionFamiliar  = input.TieneHijos
             ? (parametros.Rmv * (parametros.AsignacionFamiliarPct / 100m)).Redondear(RedondeoConcepto.Gratificacion)
             : new Money(0);
 
-        var promedioComisiones = input.PromedioComisiones.Redondear(RedondeoConcepto.Gratificacion);
-        var otrosBonos         = input.OtrosBonos.Redondear(RedondeoConcepto.Gratificacion);
+        var promedioHorasExtras = input.PromedioHorasExtras.Redondear(RedondeoConcepto.Gratificacion);
+        var promedioComisiones  = input.PromedioComisiones.Redondear(RedondeoConcepto.Gratificacion);
+        var otrosBonos          = input.OtrosBonos.Redondear(RedondeoConcepto.Gratificacion);
 
-        var rc = input.RemuneracionBasica + asignacionFamiliar + promedioComisiones + otrosBonos;
+        var rc = input.RemuneracionBasica + asignacionFamiliar + promedioHorasExtras + promedioComisiones + otrosBonos;
 
         var gratificacionMeses = (rc / 6m * input.MesesCompletados).Redondear(RedondeoConcepto.Gratificacion);
         var gratificacionDias  = (rc / 180m * input.DiasAdicionales).Redondear(RedondeoConcepto.Gratificacion);
@@ -42,6 +42,7 @@ public static class GratificacionCalculadora
             TotalDeposito:              (gratificacion + bonificacionExtraordinaria).Redondear(RedondeoConcepto.Gratificacion),
             RemuneracionComputable:     rc,
             AsignacionFamiliar:         asignacionFamiliar,
+            PromedioHorasExtras:        promedioHorasExtras,
             PromedioComisiones:         promedioComisiones,
             OtrosBonos:                 otrosBonos,
             MesesCompletados:           input.MesesCompletados,
@@ -58,6 +59,8 @@ public static class GratificacionCalculadora
             throw new ArgumentException("Los meses deben estar entre 0 y 6.");
         if (input.DiasAdicionales < 0 || input.DiasAdicionales > 29)
             throw new ArgumentException("Los días adicionales deben estar entre 0 y 29.");
+        if (input.PromedioHorasExtras.Monto < 0)
+            throw new ArgumentException("El promedio de horas extras no puede ser negativo.");
         if (input.PromedioComisiones.Monto < 0)
             throw new ArgumentException("El promedio de comisiones no puede ser negativo.");
         if (input.OtrosBonos.Monto < 0)
@@ -70,9 +73,10 @@ public sealed record GratificacionInput(
     bool    TieneHijos,
     int     MesesCompletados,
     int     DiasAdicionales,
-    bool    AportaAEps         = false,
-    Money   PromedioComisiones = default,   // promedio mensual de comisiones del semestre
-    Money   OtrosBonos         = default    // promedio mensual de otros bonos regulares
+    bool    AportaAEps          = false,
+    Money   PromedioHorasExtras = default,  // promedio mensual HH.EE. regulares (≥ 3 meses del semestre)
+    Money   PromedioComisiones  = default,  // promedio mensual de comisiones del semestre
+    Money   OtrosBonos          = default   // promedio mensual de otros bonos regulares
 );
 
 public sealed record ParametrosGratificacion(
@@ -90,6 +94,7 @@ public sealed record GratificacionResultado(
     Money   TotalDeposito,
     Money   RemuneracionComputable,
     Money   AsignacionFamiliar,
+    Money   PromedioHorasExtras,
     Money   PromedioComisiones,
     Money   OtrosBonos,
     int     MesesCompletados,

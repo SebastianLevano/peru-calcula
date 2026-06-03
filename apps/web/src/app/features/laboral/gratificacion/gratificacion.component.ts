@@ -58,7 +58,11 @@ interface GratificacionRespuesta {
           <p class="text-sm font-medium text-gray-700">
             Remuneraciones variables <span class="font-normal text-gray-500">(promedio mensual del semestre — Ley 27735 Art. 3)</span>
           </p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <app-calc-input label="Horas extras" inputId="horas" prefix="S/"
+              placeholder="0" [min]="0" [step]="0.01"
+              hint="Solo si son regulares ≥ 3 meses"
+              formControlName="promedioHorasExtras" />
             <app-calc-input label="Comisiones" inputId="comisiones" prefix="S/"
               placeholder="0" [min]="0" [step]="0.01"
               hint="Prom. mens. del semestre"
@@ -69,7 +73,7 @@ interface GratificacionRespuesta {
               formControlName="otrosBonos" />
           </div>
           <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            Las horas extras <strong>no</strong> integran la RC de gratificación (solo CTS), salvo que sean percibidas regularmente por al menos 3 meses del semestre (art. 3 Ley 27735).
+            Las horas extras integran la RC solo si fueron percibidas en al menos 3 de los 6 meses del semestre (Art. 3 Ley 27735). Déjalas en 0 si no aplica.
           </p>
         </div>
 
@@ -147,6 +151,7 @@ export class GratificacionComponent implements OnInit {
     tieneHijos:          [false],
     fechaIngreso:        [null as string | null, Validators.required],
     aportaAEps:          [false],
+    promedioHorasExtras: [0, [Validators.min(0)]],
     promedioComisiones:  [0, [Validators.min(0)]],
     otrosBonos:          [0, [Validators.min(0)]],
   });
@@ -164,15 +169,17 @@ export class GratificacionComponent implements OnInit {
     this.calculando.set(true);
     this.error.set(null);
 
-    const { remuneracionBasica, tieneHijos, fechaIngreso, aportaAEps, promedioComisiones, otrosBonos } = this.form.value;
+    const { remuneracionBasica, tieneHijos, fechaIngreso, aportaAEps,
+            promedioHorasExtras, promedioComisiones, otrosBonos } = this.form.value;
 
     this.api.post<GratificacionRespuesta>('/laboral/gratificacion', {
       remuneracionBasica,
       tieneHijos,
       fechaIngreso,
       aportaAEps,
-      promedioComisiones: promedioComisiones ?? 0,
-      otrosBonos:         otrosBonos         ?? 0,
+      promedioHorasExtras: promedioHorasExtras ?? 0,
+      promedioComisiones:  promedioComisiones  ?? 0,
+      otrosBonos:          otrosBonos          ?? 0,
     }).subscribe({
       next: (res) => {
         this.resultado.set(res);

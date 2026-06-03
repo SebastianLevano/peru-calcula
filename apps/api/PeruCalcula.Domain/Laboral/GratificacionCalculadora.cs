@@ -29,8 +29,14 @@ public static class GratificacionCalculadora
 
         var rc = input.RemuneracionBasica + asignacionFamiliar + promedioHorasExtras + promedioComisiones + otrosBonos;
 
-        var gratificacionMeses = (rc / 6m * input.MesesCompletados).Redondear(RedondeoConcepto.Gratificacion);
-        var gratificacionDias  = (rc / 180m * input.DiasAdicionales).Redondear(RedondeoConcepto.Gratificacion);
+        // Período efectivo (descuenta inasistencias injustificadas)
+        int totalDias          = input.MesesCompletados * 30 + input.DiasAdicionales;
+        int totalDiasEfectivos = Math.Max(0, totalDias - input.DiasFaltas);
+        int mesesEfectivos     = totalDiasEfectivos / 30;
+        int diasEfectivos      = totalDiasEfectivos % 30;
+
+        var gratificacionMeses = (rc / 6m * mesesEfectivos).Redondear(RedondeoConcepto.Gratificacion);
+        var gratificacionDias  = (rc / 180m * diasEfectivos).Redondear(RedondeoConcepto.Gratificacion);
         var gratificacion      = (gratificacionMeses + gratificacionDias).Redondear(RedondeoConcepto.Gratificacion);
 
         var pctBonif = input.AportaAEps ? parametros.EpsBonifPct : parametros.EssaludBonifPct;
@@ -45,8 +51,9 @@ public static class GratificacionCalculadora
             PromedioHorasExtras:        promedioHorasExtras,
             PromedioComisiones:         promedioComisiones,
             OtrosBonos:                 otrosBonos,
-            MesesCompletados:           input.MesesCompletados,
-            DiasAdicionales:            input.DiasAdicionales,
+            MesesCompletados:           mesesEfectivos,
+            DiasAdicionales:            diasEfectivos,
+            DiasFaltas:                 input.DiasFaltas,
             PctBonificacion:            pctBonif
         );
     }
@@ -65,6 +72,8 @@ public static class GratificacionCalculadora
             throw new ArgumentException("El promedio de comisiones no puede ser negativo.");
         if (input.OtrosBonos.Monto < 0)
             throw new ArgumentException("Los otros bonos no pueden ser negativos.");
+        if (input.DiasFaltas < 0)
+            throw new ArgumentException("Los días de falta no pueden ser negativos.");
     }
 }
 
@@ -74,9 +83,10 @@ public sealed record GratificacionInput(
     int     MesesCompletados,
     int     DiasAdicionales,
     bool    AportaAEps          = false,
-    Money   PromedioHorasExtras = default,  // promedio mensual HH.EE. regulares (≥ 3 meses del semestre)
-    Money   PromedioComisiones  = default,  // promedio mensual de comisiones del semestre
-    Money   OtrosBonos          = default   // promedio mensual de otros bonos regulares
+    Money   PromedioHorasExtras = default,
+    Money   PromedioComisiones  = default,
+    Money   OtrosBonos          = default,
+    int     DiasFaltas          = 0
 );
 
 public sealed record ParametrosGratificacion(
@@ -99,5 +109,6 @@ public sealed record GratificacionResultado(
     Money   OtrosBonos,
     int     MesesCompletados,
     int     DiasAdicionales,
+    int     DiasFaltas,
     decimal PctBonificacion
 );

@@ -38,13 +38,22 @@ public static class VacacionesCalculadora
         Money vacTruncas     = new(0);
         Money vacPendientes  = new(0);
 
-        if (input.AniosCompletados >= 1)
+        // Con ≥ 30 días de falta en el año, el trabajador pierde el derecho vacacional (D.Leg. 713 Art. 11)
+        bool pierdeOrdinarias = input.DiasFaltasAnio >= 30;
+
+        if (input.AniosCompletados >= 1 && !pierdeOrdinarias)
             vacOrdinarias = rc.Redondear(RedondeoConcepto.Vacaciones);
 
         if (input.MesesTruncos > 0 || input.DiasAdicionalesTruncos > 0)
         {
-            var porMeses = (rc / 12m * input.MesesTruncos).Redondear(RedondeoConcepto.Vacaciones);
-            var porDias  = (rc / 360m * input.DiasAdicionalesTruncos).Redondear(RedondeoConcepto.Vacaciones);
+            // Descuenta faltas del período trunco
+            int diasTruncosTotales   = input.MesesTruncos * 30 + input.DiasAdicionalesTruncos;
+            int diasTruncosEfectivos = Math.Max(0, diasTruncosTotales - input.DiasFaltasAnio);
+            int mesesEf = diasTruncosEfectivos / 30;
+            int diasEf  = diasTruncosEfectivos % 30;
+
+            var porMeses = (rc / 12m * mesesEf).Redondear(RedondeoConcepto.Vacaciones);
+            var porDias  = (rc / 360m * diasEf).Redondear(RedondeoConcepto.Vacaciones);
             vacTruncas   = (porMeses + porDias).Redondear(RedondeoConcepto.Vacaciones);
         }
 
@@ -62,7 +71,8 @@ public static class VacacionesCalculadora
             AsignacionFamiliar:     asignacionFamiliar,
             PromedioHorasExtras:    promedioHorasExtras,
             PromedioComisiones:     promedioComisiones,
-            OtrosBonos:             otrosBonos
+            OtrosBonos:             otrosBonos,
+            PierdeDerechoOrdinarias: pierdeOrdinarias
         );
     }
 }
@@ -73,10 +83,11 @@ public sealed record VacacionesInput(
     int   AniosCompletados,
     int   MesesTruncos           = 0,
     int   DiasPendientes         = 0,
-    int   DiasAdicionalesTruncos = 0,    // días del mes parcial al cese (D.S. 012-92-TR Art. 23)
+    int   DiasAdicionalesTruncos = 0,
     Money PromedioHorasExtras    = default,
     Money PromedioComisiones     = default,
-    Money OtrosBonos             = default
+    Money OtrosBonos             = default,
+    int   DiasFaltasAnio         = 0     // faltas en el año: ≥ 30 → pierde derecho vacacional (D.Leg. 713 Art. 11)
 );
 
 public sealed record ParametrosVacaciones(
@@ -95,5 +106,6 @@ public sealed record VacacionesResultado(
     Money AsignacionFamiliar,
     Money PromedioHorasExtras,
     Money PromedioComisiones,
-    Money OtrosBonos
+    Money OtrosBonos,
+    bool  PierdeDerechoOrdinarias   // true si DiasFaltasAnio >= 30 (D.Leg. 713 Art. 11)
 );

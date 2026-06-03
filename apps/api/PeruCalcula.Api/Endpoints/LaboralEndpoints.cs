@@ -46,7 +46,7 @@ public static class LaboralEndpoints
 
         if (req.FechaIngreso.HasValue)
         {
-            periodo = PeriodoLaboralCalculador.CalcularCts(req.FechaIngreso.Value, hoy);
+            periodo = PeriodoLaboralCalculador.CalcularCts(req.FechaIngreso.Value, hoy, req.PeriodoDeposito);
             meses   = periodo.MesesCompletados;
             dias    = periodo.DiasAdicionales;
         }
@@ -57,22 +57,28 @@ public static class LaboralEndpoints
         }
 
         var input = new CtsInput(
-            RemuneracionBasica:  new Money(req.RemuneracionBasica),
-            TieneHijos:          req.TieneHijos,
-            MesesCompletados:    meses,
-            DiasAdicionales:     dias,
-            PromedioHorasExtras: new Money(req.PromedioHorasExtras),
-            PromedioComisiones:  new Money(req.PromedioComisiones),
-            OtrosBonos:          new Money(req.OtrosBonos)
+            RemuneracionBasica:   new Money(req.RemuneracionBasica),
+            TieneHijos:           req.TieneHijos,
+            MesesCompletados:     meses,
+            DiasAdicionales:      dias,
+            UltimaGratificacion:  new Money(req.UltimaGratificacion),
+            PromedioHorasExtras:  new Money(req.PromedioHorasExtras),
+            PromedioComisiones:   new Money(req.PromedioComisiones),
+            OtrosBonos:           new Money(req.OtrosBonos),
+            DiasFaltas:           req.DiasFaltas
         );
 
         var resultado = CtsCalculadora.Calcular(input, parms);
 
+        var labelSexta = req.UltimaGratificacion > 0
+            ? $"1/6 de gratificación (S/{req.UltimaGratificacion:N2})"
+            : "1/6 gratificación (estimado sobre básico)";
+
         var desglose = new List<object>
         {
-            new { concepto = "Remuneración básica",     valor = req.RemuneracionBasica },
-            new { concepto = "Asignación familiar",     valor = resultado.AsignacionFamiliar.Monto },
-            new { concepto = "1/6 gratificación",       valor = resultado.SextaGratificacion.Monto },
+            new { concepto = "Remuneración básica", valor = req.RemuneracionBasica },
+            new { concepto = "Asignación familiar", valor = resultado.AsignacionFamiliar.Monto },
+            new { concepto = labelSexta,             valor = resultado.SextaGratificacion.Monto },
         };
 
         if (resultado.PromedioHorasExtras.Monto > 0)
@@ -82,9 +88,13 @@ public static class LaboralEndpoints
         if (resultado.OtrosBonos.Monto > 0)
             desglose.Add(new { concepto = "Otros bonos regulares/mes", valor = resultado.OtrosBonos.Monto });
 
+        desglose.Add(new { concepto = "Remuneración computable", valor = resultado.RemuneracionComputable.Monto });
+
+        if (resultado.DiasFaltas > 0)
+            desglose.Add(new { concepto = $"Descuento por {resultado.DiasFaltas} día(s) de inasistencia", valor = (decimal)0 });
+
         desglose.AddRange(new object[]
         {
-            new { concepto = "Remuneración computable",                                valor = resultado.RemuneracionComputable.Monto },
             new { concepto = $"CTS por {resultado.MesesCompletados} meses",           valor = resultado.CtsMeses.Monto },
             new { concepto = $"CTS por {resultado.DiasAdicionales} días adicionales", valor = resultado.CtsDias.Monto },
         });
@@ -116,12 +126,15 @@ public static class LaboralEndpoints
 public sealed record CtsRequest(
     decimal   RemuneracionBasica,
     bool      TieneHijos,
-    DateOnly? FechaIngreso       = null,   // auto-calcula período normativo
-    int?      MesesCompletados   = null,   // alternativa manual
-    int?      DiasAdicionales    = null,   // alternativa manual
-    decimal   PromedioHorasExtras = 0,     // promedio mensual HH.EE. (últimos 6 meses)
-    decimal   PromedioComisiones  = 0,     // promedio mensual comisiones del semestre
-    decimal   OtrosBonos          = 0      // promedio mensual otros bonos regulares
+    DateOnly? FechaIngreso        = null,
+    int?      MesesCompletados    = null,
+    int?      DiasAdicionales     = null,
+    string?   PeriodoDeposito     = null,   // "mayo" | "noviembre" (override auto-detección)
+    decimal   UltimaGratificacion = 0,      // monto real de la última grati; si 0, usa básico/6
+    decimal   PromedioHorasExtras = 0,
+    decimal   PromedioComisiones  = 0,
+    decimal   OtrosBonos          = 0,
+    int       DiasFaltas          = 0       // días de inasistencia injustificada (Art. 18 D.Leg. 650)
 );
 
 public sealed class CtsRequestValidator : AbstractValidator<CtsRequest>
@@ -131,9 +144,14 @@ public sealed class CtsRequestValidator : AbstractValidator<CtsRequest>
         RuleFor(x => x.RemuneracionBasica).GreaterThan(0);
         RuleFor(x => x.MesesCompletados).InclusiveBetween(0, 6).When(x => x.MesesCompletados.HasValue);
         RuleFor(x => x.DiasAdicionales).InclusiveBetween(0, 29).When(x => x.DiasAdicionales.HasValue);
+        RuleFor(x => x.UltimaGratificacion).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PromedioHorasExtras).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PromedioComisiones).GreaterThanOrEqualTo(0);
         RuleFor(x => x.OtrosBonos).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.DiasFaltas).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.PeriodoDeposito)
+            .Must(p => p is null or "mayo" or "noviembre")
+            .WithMessage("periodoDeposito debe ser 'mayo' o 'noviembre'.");
         RuleFor(x => x)
             .Must(x => x.FechaIngreso.HasValue || (x.MesesCompletados.HasValue && x.DiasAdicionales.HasValue))
             .WithMessage("Indica 'fechaIngreso' o 'mesesCompletados' + 'diasAdicionales'.");

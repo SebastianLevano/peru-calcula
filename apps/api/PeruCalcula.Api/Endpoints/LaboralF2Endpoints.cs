@@ -46,7 +46,7 @@ public static class LaboralF2Endpoints
 
         if (req.FechaIngreso.HasValue)
         {
-            periodo = PeriodoLaboralCalculador.CalcularGratificacion(req.FechaIngreso.Value, hoy);
+            periodo = PeriodoLaboralCalculador.CalcularGratificacion(req.FechaIngreso.Value, hoy, req.PeriodoDeposito);
             meses   = periodo.MesesCompletados;
             dias    = periodo.DiasAdicionales;
         }
@@ -59,7 +59,8 @@ public static class LaboralF2Endpoints
         var resultado = GratificacionCalculadora.Calcular(
             new GratificacionInput(
                 new Money(req.RemuneracionBasica), req.TieneHijos, meses, dias, req.AportaAEps,
-                new Money(req.PromedioHorasExtras), new Money(req.PromedioComisiones), new Money(req.OtrosBonos)), parms);
+                new Money(req.PromedioHorasExtras), new Money(req.PromedioComisiones), new Money(req.OtrosBonos),
+                DiasFaltas: req.DiasFaltas), parms);
 
         var desglose = new List<object>
         {
@@ -74,11 +75,15 @@ public static class LaboralF2Endpoints
         if (resultado.OtrosBonos.Monto > 0)
             desglose.Add(new { concepto = "Otros bonos regulares/mes", valor = resultado.OtrosBonos.Monto });
 
+        desglose.Add(new { concepto = "Remuneración computable (RC)", valor = resultado.RemuneracionComputable.Monto });
+
+        if (resultado.DiasFaltas > 0)
+            desglose.Add(new { concepto = $"Descuento por {resultado.DiasFaltas} día(s) de inasistencia", valor = (decimal)0 });
+
         desglose.AddRange(new object[]
         {
-            new { concepto = "Remuneración computable (RC)",                                              valor = resultado.RemuneracionComputable.Monto },
-            new { concepto = $"Gratificación ({resultado.MesesCompletados} meses)",                      valor = resultado.Gratificacion.Monto },
-            new { concepto = $"Bonificación extraordinaria ({resultado.PctBonificacion}%)",               valor = resultado.BonificacionExtraordinaria.Monto },
+            new { concepto = $"Gratificación ({resultado.MesesCompletados} meses)",        valor = resultado.Gratificacion.Monto },
+            new { concepto = $"Bonificación extraordinaria ({resultado.PctBonificacion}%)", valor = resultado.BonificacionExtraordinaria.Monto },
         });
 
         return Results.Ok(new
@@ -153,7 +158,8 @@ public static class LaboralF2Endpoints
             DiasAdicionalesTruncos:  diasAdicionales,
             PromedioHorasExtras:     new Money(req.PromedioHorasExtras),
             PromedioComisiones:      new Money(req.PromedioComisiones),
-            OtrosBonos:              new Money(req.OtrosBonos)
+            OtrosBonos:              new Money(req.OtrosBonos),
+            DiasFaltasAnio:          req.DiasFaltasAnio
         );
 
         var resultado = VacacionesCalculadora.Calcular(input, parms);
@@ -192,12 +198,15 @@ public static class LaboralF2Endpoints
             },
             periodo = periodo is null ? null : new
             {
-                nombre           = periodo.Nombre,
+                nombre            = periodo.Nombre,
                 ultimoAniversario = periodo.UltimoAniversario.ToString("yyyy-MM-dd"),
-                aniosCompletados = periodo.AniosCompletados,
-                mesesTruncos     = periodo.MesesTruncos,
-                diasAdicionales  = periodo.DiasAdicionales,
+                aniosCompletados  = periodo.AniosCompletados,
+                mesesTruncos      = periodo.MesesTruncos,
+                diasAdicionales   = periodo.DiasAdicionales,
             },
+            advertencia = resultado.PierdeDerechoOrdinarias
+                ? "Con 30 o más días de inasistencia injustificada en el año, el trabajador pierde el derecho a vacaciones ordinarias de ese período (D.Leg. 713 Art. 11)."
+                : null,
             desglose,
             formula   = "Ordinarias = RC mensual | Truncas = RC/12×meses + RC/360×días | Pendientes = RC/30×días  (D.Leg. 713 / D.S. 012-92-TR)",
             confianza = new
@@ -214,25 +223,28 @@ public static class LaboralF2Endpoints
 public sealed record GratificacionRequest(
     decimal   RemuneracionBasica,
     bool      TieneHijos,
-    DateOnly? FechaIngreso       = null,
-    int?      MesesCompletados   = null,
-    int?      DiasAdicionales    = null,
-    bool      AportaAEps         = false,
+    DateOnly? FechaIngreso        = null,
+    int?      MesesCompletados    = null,
+    int?      DiasAdicionales     = null,
+    string?   PeriodoDeposito     = null,  // "julio" | "diciembre"
+    bool      AportaAEps          = false,
     decimal   PromedioHorasExtras = 0,
     decimal   PromedioComisiones  = 0,
-    decimal   OtrosBonos          = 0
+    decimal   OtrosBonos          = 0,
+    int       DiasFaltas          = 0
 );
 public sealed record VacacionesRequest(
     decimal   RemuneracionBasica,
     bool      TieneHijos,
-    DateOnly? FechaIngreso         = null,
-    int?      AniosCompletados     = null,
-    int?      MesesTruncos         = null,
-    int?      DiasAdicionales      = null,
-    int       DiasPendientes       = 0,
-    decimal   PromedioHorasExtras  = 0,
-    decimal   PromedioComisiones   = 0,
-    decimal   OtrosBonos           = 0
+    DateOnly? FechaIngreso        = null,
+    int?      AniosCompletados    = null,
+    int?      MesesTruncos        = null,
+    int?      DiasAdicionales     = null,
+    int       DiasPendientes      = 0,
+    decimal   PromedioHorasExtras = 0,
+    decimal   PromedioComisiones  = 0,
+    decimal   OtrosBonos          = 0,
+    int       DiasFaltasAnio      = 0   // faltas en el año: ≥ 30 → pierde derecho vacacional (D.Leg. 713 Art. 11)
 );
 
 public sealed class GratificacionRequestValidator : AbstractValidator<GratificacionRequest>
@@ -245,6 +257,10 @@ public sealed class GratificacionRequestValidator : AbstractValidator<Gratificac
         RuleFor(x => x.PromedioHorasExtras).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PromedioComisiones).GreaterThanOrEqualTo(0);
         RuleFor(x => x.OtrosBonos).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.DiasFaltas).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.PeriodoDeposito)
+            .Must(p => p is null or "julio" or "diciembre")
+            .WithMessage("periodoDeposito debe ser 'julio' o 'diciembre'.");
         RuleFor(x => x)
             .Must(x => x.FechaIngreso.HasValue || (x.MesesCompletados.HasValue && x.DiasAdicionales.HasValue))
             .WithMessage("Indica 'fechaIngreso' o 'mesesCompletados' + 'diasAdicionales'.");
@@ -263,6 +279,7 @@ public sealed class VacacionesRequestValidator : AbstractValidator<VacacionesReq
         RuleFor(x => x.PromedioHorasExtras).GreaterThanOrEqualTo(0);
         RuleFor(x => x.PromedioComisiones).GreaterThanOrEqualTo(0);
         RuleFor(x => x.OtrosBonos).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.DiasFaltasAnio).GreaterThanOrEqualTo(0);
         RuleFor(x => x)
             .Must(x => x.FechaIngreso.HasValue || x.AniosCompletados.HasValue)
             .WithMessage("Indica 'fechaIngreso' o 'aniosCompletados'.");

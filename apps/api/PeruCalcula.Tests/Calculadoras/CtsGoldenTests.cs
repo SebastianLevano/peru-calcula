@@ -105,7 +105,7 @@ public class CtsGoldenTests
     {
         // Básico 4000, hijos, HH.EE. 300, comisiones 400, bonos 100, 4m 10d
         // Asig.fam = 10% * 1025 = 102.50
-        // Sexta = 4000/6 = 666.67
+        // Sexta = 4000/6 = 666.67 (sin UltimaGratificacion → usa básico)
         // RC = 4000 + 102.50 + 666.67 + 300 + 400 + 100 = 5569.17
         // CTS meses = 5569.17/12 * 4 = 1856.39
         // CTS días  = 5569.17/360 * 10 = 154.70
@@ -123,6 +123,41 @@ public class CtsGoldenTests
         Assert.Equal(1856.39m, r.CtsMeses.Monto);
         Assert.Equal(154.70m,  r.CtsDias.Monto);
         Assert.Equal(2011.09m, r.MontoFinal.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void UltimaGratificacion_Real_UsadaParaSexta()
+    {
+        // Básico 3000, última grati real = 3600 (incluía comisiones ese semestre)
+        // Sexta = 3600/6 = 600 (no 3000/6 = 500)
+        // RC = 3000 + 600 = 3600; CTS 6 meses = 3600/12*6 = 1800
+        var r = CtsCalculadora.Calcular(
+            new CtsInput(new Money(3000m), TieneHijos: false, MesesCompletados: 6, DiasAdicionales: 0,
+                UltimaGratificacion: new Money(3600m)),
+            Params2024);
+
+        Assert.Equal(600m,  r.SextaGratificacion.Monto);
+        Assert.Equal(3600m, r.RemuneracionComputable.Monto);
+        Assert.Equal(1800m, r.MontoFinal.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void Faltas_ReducenPeriodoComputable()
+    {
+        // Básico 3000, 6 meses, 0 días, 15 días de falta
+        // Período efectivo = 6*30 - 15 = 165 días = 5 meses 15 días
+        // RC = 3000 + 3000/6 = 3500
+        // CTS = 3500/12*5 + 3500/360*15 = 1458.33 + 145.83 = 1604.17
+        var r = CtsCalculadora.Calcular(
+            new CtsInput(new Money(3000m), TieneHijos: false, MesesCompletados: 6, DiasAdicionales: 0,
+                DiasFaltas: 15),
+            Params2024);
+
+        Assert.Equal(5,  r.MesesCompletados);
+        Assert.Equal(15, r.DiasAdicionales);
+        Assert.Equal(15, r.DiasFaltas);
     }
 }
 

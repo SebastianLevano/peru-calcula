@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, ViewChild, OnInit, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { ApiClientService } from '../../../core/api-client.service';
@@ -6,8 +6,12 @@ import { SeoService } from '../../../core/seo.service';
 import { AnalyticsService } from '../../../core/analytics.service';
 import { ResultCardComponent, ResultadoConfianza, DesgloseLine } from '../../../shared/components/result-card.component';
 import { CalcInputComponent } from '../../../shared/ui/calc-input.component';
+import { InputMesesComponent } from '../../../shared/ui/input-meses.component';
 
-interface PeriodoInfo { nombre: string; inicioEfectivo: string; finEfectivo: string; mesesCompletados: number; diasAdicionales: number; }
+interface PeriodoInfo {
+  nombre: string; inicioEfectivo: string; finEfectivo: string;
+  mesesCompletados: number; diasAdicionales: number;
+}
 interface GratificacionRespuesta {
   resultado: { gratificacion: number; bonificacionExtraordinaria: number; totalDeposito: number; moneda: string };
   periodo: PeriodoInfo | null;
@@ -16,19 +20,45 @@ interface GratificacionRespuesta {
   confianza: ResultadoConfianza;
 }
 
+const MESES_GRATI: Record<'julio' | 'diciembre', string[]> = {
+  julio:     ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'],
+  diciembre: ['Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+};
+
+function defaultPeriodoGrati(): 'julio' | 'diciembre' {
+  return new Date().getMonth() + 1 <= 6 ? 'julio' : 'diciembre';
+}
+
 @Component({
   selector: 'app-gratificacion',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ResultCardComponent, CalcInputComponent],
+  imports: [CommonModule, ReactiveFormsModule, ResultCardComponent, CalcInputComponent, InputMesesComponent],
   template: `
     <main class="max-w-2xl mx-auto py-10 px-4 space-y-8">
       <header>
         <h1 class="text-3xl font-bold text-gray-900">Calculadora de Gratificación</h1>
         <p class="mt-2 text-gray-600 text-sm">
           Gratificación ordinaria de julio y diciembre + bonificación extraordinaria (Ley 27735 / Ley 29351).
-          Incluye comisiones y bonos regulares en la remuneración computable.
         </p>
       </header>
+
+      <!-- Selector de período -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <p class="text-sm font-medium text-gray-700 mb-3">¿Qué gratificación calculás?</p>
+        <div class="grid grid-cols-2 gap-3">
+          @for (op of opcionesPeriodo; track op.valor) {
+            <button type="button"
+              (click)="periodoDeposito.set(op.valor)"
+              [class]="'rounded-lg border-2 px-4 py-3 text-sm font-medium transition-colors ' +
+                (periodoDeposito() === op.valor
+                  ? 'border-blue-600 bg-blue-50 text-blue-700'
+                  : 'border-gray-200 text-gray-600 hover:border-gray-300')">
+              {{ op.label }}
+              <span class="block text-xs font-normal opacity-70">{{ op.sub }}</span>
+            </button>
+          }
+        </div>
+      </div>
 
       <form [formGroup]="form" (ngSubmit)="calcular()" class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
 
@@ -43,46 +73,39 @@ interface GratificacionRespuesta {
           </span>
         </label>
 
-        <!-- Fecha de ingreso -->
         <div>
-          <label for="fechaIngreso" class="block text-sm font-medium text-gray-700 mb-1">
-            Fecha de inicio en la empresa
-          </label>
+          <label for="fechaIngreso" class="block text-sm font-medium text-gray-700 mb-1">Fecha de inicio en la empresa</label>
           <input type="date" id="fechaIngreso" formControlName="fechaIngreso"
                  class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <p class="mt-1 text-xs text-gray-500">El período se calcula automáticamente (Ene–Jun para julio, Jul–Dic para diciembre).</p>
+          <p class="mt-1 text-xs text-gray-500">
+            El período {{ periodoDeposito() === 'julio' ? 'Ene–Jun' : 'Jul–Dic' }} se calcula automáticamente.
+          </p>
         </div>
 
-        <!-- Remuneraciones variables -->
-        <div class="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-4">
+        <!-- Variables mensuales -->
+        <div class="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-5">
           <p class="text-sm font-medium text-gray-700">
-            Remuneraciones variables <span class="font-normal text-gray-500">(promedio mensual del semestre — Ley 27735 Art. 3)</span>
+            Remuneraciones variables
+            <span class="font-normal text-gray-500"> — ingresá cada mes (Ley 27735 Art. 3)</span>
           </p>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <app-calc-input label="Horas extras" inputId="horas" prefix="S/"
-              placeholder="0" [min]="0" [step]="0.01"
-              hint="Solo si son regulares ≥ 3 meses"
-              formControlName="promedioHorasExtras" />
-            <app-calc-input label="Comisiones" inputId="comisiones" prefix="S/"
-              placeholder="0" [min]="0" [step]="0.01"
-              hint="Prom. mens. del semestre"
-              formControlName="promedioComisiones" />
-            <app-calc-input label="Otros bonos" inputId="bonos" prefix="S/"
-              placeholder="0" [min]="0" [step]="0.01"
-              hint="Bonos regulares (≥ 3 meses)"
-              formControlName="otrosBonos" />
-          </div>
+          <app-input-meses #horasRef label="Horas extras (S/)" [mesesLabels]="mesesActuales()" />
+          <app-input-meses #comisionesRef label="Comisiones (S/)" [mesesLabels]="mesesActuales()" />
+          <app-input-meses #bonosRef label="Otros bonos regulares (S/)" [mesesLabels]="mesesActuales()" />
           <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            Las horas extras integran la RC solo si fueron percibidas en al menos 3 de los 6 meses del semestre (Art. 3 Ley 27735). Déjalas en 0 si no aplica.
+            Las horas extras integran la RC solo si fueron percibidas en al menos 3 de los 6 meses del semestre (Art. 3 Ley 27735).
           </p>
         </div>
 
-        <!-- EPS -->
         <label class="flex items-center gap-3 cursor-pointer">
           <input type="checkbox" formControlName="aportaAEps"
                  class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
           <span class="text-sm font-medium text-gray-700">Aporto a EPS (6.75%) en lugar de EsSalud (9%)</span>
         </label>
+
+        <app-calc-input label="Días de inasistencia injustificada" inputId="faltas"
+          placeholder="0" [min]="0"
+          hint="Reducen el período computable del semestre"
+          formControlName="diasFaltas" />
 
         <button type="submit" [disabled]="form.invalid || calculando()"
           class="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700
@@ -97,7 +120,6 @@ interface GratificacionRespuesta {
       }
 
       @if (resultado()) {
-        <!-- Período -->
         @if (resultado()!.periodo) {
           <div class="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm">
             <p class="font-medium text-blue-800">Período: {{ resultado()!.periodo!.nombre }}</p>
@@ -105,9 +127,6 @@ interface GratificacionRespuesta {
               {{ resultado()!.periodo!.inicioEfectivo | date:'dd MMM yyyy':'':'es' }}
               → {{ resultado()!.periodo!.finEfectivo | date:'dd MMM yyyy':'':'es' }}
               · {{ resultado()!.periodo!.mesesCompletados }} mes{{ resultado()!.periodo!.mesesCompletados !== 1 ? 'es' : '' }}
-              @if (resultado()!.periodo!.diasAdicionales > 0) {
-                y {{ resultado()!.periodo!.diasAdicionales }} día{{ resultado()!.periodo!.diasAdicionales !== 1 ? 's' : '' }}
-              }
             </p>
           </div>
         }
@@ -117,7 +136,6 @@ interface GratificacionRespuesta {
           [desglose]="toDesglose(resultado()!.desglose)"
           [confianza]="resultado()!.confianza" />
 
-        <!-- Detalle gratificación vs bonificación -->
         <div class="grid grid-cols-2 gap-4">
           <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <div class="text-xs text-gray-500 mb-1">Gratificación</div>
@@ -136,50 +154,62 @@ interface GratificacionRespuesta {
     </main>
   `,
 })
-export class GratificacionComponent implements OnInit {
+export class GratificacionComponent implements OnInit, AfterViewInit {
   private readonly api       = inject(ApiClientService);
   private readonly seo       = inject(SeoService);
   private readonly analytics = inject(AnalyticsService);
   private readonly fb        = inject(FormBuilder);
 
-  readonly calculando = signal(false);
-  readonly resultado  = signal<GratificacionRespuesta | null>(null);
-  readonly error      = signal<string | null>(null);
+  @ViewChild('horasRef')      horasRef!:      InputMesesComponent;
+  @ViewChild('comisionesRef') comisionesRef!: InputMesesComponent;
+  @ViewChild('bonosRef')      bonosRef!:      InputMesesComponent;
+
+  readonly calculando      = signal(false);
+  readonly resultado       = signal<GratificacionRespuesta | null>(null);
+  readonly error           = signal<string | null>(null);
+  readonly periodoDeposito = signal<'julio' | 'diciembre'>(defaultPeriodoGrati());
+  readonly mesesActuales   = computed(() => MESES_GRATI[this.periodoDeposito()]);
+
+  readonly opcionesPeriodo = [
+    { valor: 'julio'     as const, label: 'Gratificación Julio',      sub: 'Período Ene – Jun' },
+    { valor: 'diciembre' as const, label: 'Gratificación Diciembre',  sub: 'Período Jul – Dic' },
+  ];
 
   readonly form = this.fb.group({
-    remuneracionBasica:  [null as number | null, [Validators.required, Validators.min(1)]],
-    tieneHijos:          [false],
-    fechaIngreso:        [null as string | null, Validators.required],
-    aportaAEps:          [false],
-    promedioHorasExtras: [0, [Validators.min(0)]],
-    promedioComisiones:  [0, [Validators.min(0)]],
-    otrosBonos:          [0, [Validators.min(0)]],
+    remuneracionBasica: [null as number | null, [Validators.required, Validators.min(1)]],
+    tieneHijos:         [false],
+    fechaIngreso:       [null as string | null, Validators.required],
+    aportaAEps:         [false],
+    diasFaltas:         [0, [Validators.min(0)]],
   });
 
   ngOnInit() {
     this.seo.set({
       title: 'Calculadora de Gratificación — Perú Calcula',
-      description: 'Calcula tu gratificación de julio o diciembre con bonificación extraordinaria. Incluye comisiones y bonos regulares. Según Ley 27735.',
+      description: 'Calcula tu gratificación de julio o diciembre con bonificación extraordinaria. Ley 27735.',
     });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'gratificacion', modulo: 'laboral' });
   }
+
+  ngAfterViewInit() {}
 
   calcular() {
     if (this.form.invalid) return;
     this.calculando.set(true);
     this.error.set(null);
 
-    const { remuneracionBasica, tieneHijos, fechaIngreso, aportaAEps,
-            promedioHorasExtras, promedioComisiones, otrosBonos } = this.form.value;
+    const v = this.form.value;
 
     this.api.post<GratificacionRespuesta>('/laboral/gratificacion', {
-      remuneracionBasica,
-      tieneHijos,
-      fechaIngreso,
-      aportaAEps,
-      promedioHorasExtras: promedioHorasExtras ?? 0,
-      promedioComisiones:  promedioComisiones  ?? 0,
-      otrosBonos:          otrosBonos          ?? 0,
+      remuneracionBasica:   v.remuneracionBasica,
+      tieneHijos:           v.tieneHijos,
+      fechaIngreso:         v.fechaIngreso,
+      periodoDeposito:      this.periodoDeposito(),
+      aportaAEps:           v.aportaAEps,
+      promedioHorasExtras:  this.horasRef?.promedio()      ?? 0,
+      promedioComisiones:   this.comisionesRef?.promedio() ?? 0,
+      otrosBonos:           this.bonosRef?.promedio()      ?? 0,
+      diasFaltas:           v.diasFaltas ?? 0,
     }).subscribe({
       next: (res) => {
         this.resultado.set(res);

@@ -22,15 +22,17 @@ namespace PeruCalcula.Domain.Laboral;
 /// </summary>
 public static class PeriodoLaboralCalculador
 {
-    public static PeriodoResultado CalcularCts(DateOnly fechaIngreso, DateOnly hoy)
+    /// <param name="periodoDeposito">"mayo" o "noviembre" para forzar un período; null = auto-detectar.</param>
+    public static PeriodoResultado CalcularCts(DateOnly fechaIngreso, DateOnly hoy, string? periodoDeposito = null)
     {
-        // Determinar período activo según mes actual
+        bool usarPeriodoMayo = periodoDeposito?.Equals("mayo", StringComparison.OrdinalIgnoreCase)
+                               ?? (hoy.Month is >= 11 or <= 4);
+
         DateOnly inicioNormativo, finNormativo;
         string nombre;
 
-        if (hoy.Month is >= 11 or <= 4)
+        if (usarPeriodoMayo)
         {
-            // Período noviembre→abril (depósito mayo)
             int añoInicio = hoy.Month >= 11 ? hoy.Year : hoy.Year - 1;
             inicioNormativo = new DateOnly(añoInicio, 11, 1);
             finNormativo    = new DateOnly(añoInicio + 1, 4, 30);
@@ -38,7 +40,6 @@ public static class PeriodoLaboralCalculador
         }
         else
         {
-            // Período mayo→octubre (depósito noviembre)
             inicioNormativo = new DateOnly(hoy.Year, 5, 1);
             finNormativo    = new DateOnly(hoy.Year, 10, 31);
             nombre = $"May {hoy.Year} – Oct {hoy.Year} (depósito noviembre)";
@@ -47,21 +48,23 @@ public static class PeriodoLaboralCalculador
         return Calcular(fechaIngreso, inicioNormativo, finNormativo, hoy, nombre);
     }
 
-    public static PeriodoResultado CalcularGratificacion(DateOnly fechaIngreso, DateOnly hoy)
+    /// <param name="periodoDeposito">"julio" o "diciembre" para forzar un período; null = auto-detectar.</param>
+    public static PeriodoResultado CalcularGratificacion(DateOnly fechaIngreso, DateOnly hoy, string? periodoDeposito = null)
     {
+        bool usarPeriodoJulio = periodoDeposito?.Equals("julio", StringComparison.OrdinalIgnoreCase)
+                                ?? (hoy.Month <= 6);
+
         DateOnly inicioNormativo, finNormativo;
         string nombre;
 
-        if (hoy.Month <= 6)
+        if (usarPeriodoJulio)
         {
-            // Período enero→junio (depósito julio)
             inicioNormativo = new DateOnly(hoy.Year, 1, 1);
             finNormativo    = new DateOnly(hoy.Year, 6, 30);
             nombre = $"Ene – Jun {hoy.Year} (depósito julio)";
         }
         else
         {
-            // Período julio→diciembre (depósito diciembre)
             inicioNormativo = new DateOnly(hoy.Year, 7, 1);
             finNormativo    = new DateOnly(hoy.Year, 12, 31);
             nombre = $"Jul – Dic {hoy.Year} (depósito diciembre)";

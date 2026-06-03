@@ -49,6 +49,22 @@ public class GratificacionGoldenTests
 
     [Fact]
     [Trait("Category", "Golden")]
+    public void Faltas_ReducenPeriodoComputable()
+    {
+        // Básico 3000, 6 meses, 10 días de falta
+        // Período efectivo = 6*30 - 10 = 170 días = 5 meses 20 días
+        // RC = 3000; Grati = 3000/6*5 + 3000/180*20 = 2500 + 333.33 = 2833.33
+        var r = GratificacionCalculadora.Calcular(
+            new GratificacionInput(new Money(3000m), false, 6, 0, DiasFaltas: 10), Params);
+
+        Assert.Equal(5,       r.MesesCompletados);
+        Assert.Equal(20,      r.DiasAdicionales);
+        Assert.Equal(10,      r.DiasFaltas);
+        Assert.Equal(2833.33m, r.Gratificacion.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
     public void Caso_ConHorasExtras_Regulares_6Meses()
     {
         // HH.EE. regulares (≥ 3 meses) integran RC — Art. 3 Ley 27735

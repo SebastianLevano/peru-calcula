@@ -97,6 +97,31 @@ public class VacacionesGoldenTests
 
     [Fact]
     [Trait("Category", "Golden")]
+    public void Faltas_MenoresDe30_ReducenTruncas()
+    {
+        // 8 meses truncos, 15 días falta → efectivo = 8*30-15 = 225 días = 7m 15d
+        // RC = 1500; truncas = 1500/12*7 + 1500/360*15 = 875 + 62.50 = 937.50
+        var r = VacacionesCalculadora.Calcular(
+            new VacacionesInput(new Money(1500m), false, 0, MesesTruncos: 8, DiasFaltasAnio: 15), Params);
+
+        Assert.False(r.PierdeDerechoOrdinarias);
+        Assert.Equal(937.50m, r.VacacionesTruncas.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void Faltas_30OMas_PierdeDerechoOrdinarias()
+    {
+        // 1 año completo pero 30 días de falta → pierde ordinarias
+        var r = VacacionesCalculadora.Calcular(
+            new VacacionesInput(new Money(2000m), false, 1, DiasFaltasAnio: 30), Params);
+
+        Assert.True(r.PierdeDerechoOrdinarias);
+        Assert.Equal(0m, r.VacacionesOrdinarias.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
     public void PeriodoVacaciones_FechaIngreso()
     {
         // Ingreso 2022-03-15, hoy 2026-06-03 → 4 años, 2 meses, 19 días

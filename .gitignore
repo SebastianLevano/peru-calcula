@@ -1,0 +1,47 @@
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+TestResults/
+*.nupkg
+*.snupkg
+*.log
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# ---- EF Core migrations snapshot (keep migrations, ignore runtime) ----
+# (migraciones se versionan)
+
+# ---- Node / Angular ----
+node_modules/
+dist/
+.angular/
+apps/web/.angular/
+*.js.map
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ---- Docker ----
+.docker/
+
+# ---- Secrets & env ----
+.env
+.env.*
+!.env.example
+secrets/
+*.pfx
+*.p12
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- IDEs ----
+.idea/
+*.swp
+*.swo

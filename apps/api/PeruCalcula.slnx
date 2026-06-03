@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="PeruCalcula.Api/PeruCalcula.Api.csproj" />
+  <Project Path="PeruCalcula.Domain/PeruCalcula.Domain.csproj" />
+  <Project Path="PeruCalcula.Infrastructure/PeruCalcula.Infrastructure.csproj" />
+  <Project Path="PeruCalcula.Shared/PeruCalcula.Shared.csproj" />
+  <Project Path="PeruCalcula.Tests/PeruCalcula.Tests.csproj" />
+</Solution>

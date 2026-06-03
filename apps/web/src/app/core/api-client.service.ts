@@ -1,0 +1,17 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
+
+@Injectable({ providedIn: 'root' })
+export class ApiClientService {
+  private readonly http = inject(HttpClient);
+  private readonly base = `${environment.apiUrl}/api/v1`;
+
+  get<T>(path: string) {
+    return this.http.get<T>(`${this.base}${path}`);
+  }
+
+  post<T>(path: string, body: unknown) {
+    return this.http.post<T>(`${this.base}${path}`, body);
+  }
+}

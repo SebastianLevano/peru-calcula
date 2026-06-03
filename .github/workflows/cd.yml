@@ -1,0 +1,151 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # ── Build y push imágenes Docker ─────────────────────────────────────────────
+  build-images:
+    name: Build & push Docker images
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/peru-calcula
+          tags: |
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build & push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/api.Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/peru-calcula-api:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push Web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web.Dockerfile
+          push: true
+          tags: ${{ env.REGISTRY }}/peru-calcula-web:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy a Staging ──────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    needs: build-images
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Paso controlado: migraciones EF ANTES del deploy (ADR-27, expand/contract)
+      - name: Run EF migrations (staging)
+        env:
+          DB_CONNECTION: ${{ secrets.STAGING_DB_CONNECTION }}
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet ef database update \
+            --project apps/api/PeruCalcula.Infrastructure \
+            --startup-project apps/api/PeruCalcula.Api \
+            --connection "$DB_CONNECTION" \
+            -- --environment Staging
+
+      - name: Deploy to staging server
+        env:
+          SSH_KEY:      ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          IMAGE_TAG:    ${{ needs.build-images.outputs.image-tag }}
+        run: |
+          echo "$SSH_KEY" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no deploy@$STAGING_HOST \
+            "cd /opt/peru-calcula && \
+             IMAGE_TAG=$IMAGE_TAG REGISTRY=${{ env.REGISTRY }} \
+             docker compose -f docker-compose.prod.yml pull && \
+             docker compose -f docker-compose.prod.yml up -d --remove-orphans"
+
+      - name: Smoke test staging
+        env:
+          STAGING_URL: ${{ vars.STAGING_URL }}
+        run: |
+          sleep 15
+          curl -f "$STAGING_URL/health/ready" || exit 1
+          curl -f "$STAGING_URL/" | grep -q "Perú Calcula" || exit 1
+
+  # ── Deploy a Producción (requiere aprobación manual) ──────────────────────────
+  deploy-production:
+    name: Deploy → Production
+    needs: [build-images, deploy-staging]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Migraciones EF en producción: paso controlado y explícito (ADR-27)
+      - name: Run EF migrations (production)
+        env:
+          DB_CONNECTION: ${{ secrets.PRODUCTION_DB_CONNECTION }}
+        run: |
+          dotnet tool install --global dotnet-ef
+          dotnet ef database update \
+            --project apps/api/PeruCalcula.Infrastructure \
+            --startup-project apps/api/PeruCalcula.Api \
+            --connection "$DB_CONNECTION" \
+            -- --environment Production
+
+      - name: Deploy to production server
+        env:
+          SSH_KEY:         ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          IMAGE_TAG:       ${{ needs.build-images.outputs.image-tag }}
+        run: |
+          echo "$SSH_KEY" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no deploy@$PRODUCTION_HOST \
+            "cd /opt/peru-calcula && \
+             IMAGE_TAG=$IMAGE_TAG REGISTRY=${{ env.REGISTRY }} \
+             docker compose -f docker-compose.prod.yml pull && \
+             docker compose -f docker-compose.prod.yml up -d --remove-orphans"
+
+      - name: Smoke test production
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          sleep 15
+          curl -f "$PRODUCTION_URL/health/ready" || exit 1

@@ -1,7 +1,11 @@
+using System.Text;
 using System.Threading.Channels;
 using System.Threading.RateLimiting;
 using FluentValidation;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 using PeruCalcula.Api.BackgroundServices;
+using PeruCalcula.Api.Endpoints;
 using PeruCalcula.Api.Middleware;
 using PeruCalcula.Infrastructure;
 using PeruCalcula.Shared.Contracts;
@@ -25,12 +29,36 @@ try
     // ── Infrastructure (DB, caché, parámetros, reloj, feature flags) ────────
     builder.Services.AddInfrastructure(builder.Configuration);
 
+    // ── JWT Auth (ADR-08) ─────────────────────────────────────────────────────
+    var jwtKey = builder.Configuration["Jwt:Key"]
+        ?? throw new InvalidOperationException("Jwt:Key no configurado.");
+
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(opt =>
+        {
+            opt.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                ValidateIssuer           = true,
+                ValidIssuer              = builder.Configuration["Jwt:Issuer"] ?? "PeruCalcula",
+                ValidateAudience         = true,
+                ValidAudience            = builder.Configuration["Jwt:Audience"] ?? "PeruCalcula",
+                ClockSkew                = TimeSpan.FromSeconds(30),
+            };
+        });
+
+    builder.Services.AddAuthorizationBuilder()
+        .AddPolicy("admin", p => p.RequireRole("admin"));
+
     // ── Analytics async: Channel + BackgroundService (ADR-25) ────────────────
     var analyticsChannel = Channel.CreateBounded<AnalyticsEventoDto>(
         new BoundedChannelOptions(2000) { FullMode = BoundedChannelFullMode.DropOldest });
     builder.Services.AddSingleton(analyticsChannel);
     builder.Services.AddSingleton<IAnalyticsQueue, AnalyticsQueue>();
     builder.Services.AddHostedService<AnalyticsWorker>();
+    builder.Services.AddHostedService<RollupWorker>();
 
     // ── Health Checks (ADR-18) ───────────────────────────────────────────────
     builder.Services.AddHealthChecks()
@@ -97,6 +125,8 @@ try
 
     app.UseCors("Web");
     app.UseRateLimiter();
+    app.UseAuthentication();
+    app.UseAuthorization();
 
     if (app.Environment.IsDevelopment())
         app.MapOpenApi();
@@ -109,8 +139,13 @@ try
     app.MapHealthChecks("/health/live",  new() { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new() { Predicate = hc => hc.Tags.Contains("ready") });
 
-    // ── API Endpoints (se agregarán por módulo en F1) ────────────────────────
-    app.MapGroup("/api/v1");
+    // ── API Endpoints ────────────────────────────────────────────────────────
+    app.MapLaboral();
+    app.MapTributario();
+    app.MapFinanzas();
+    app.MapAnalytics();
+    app.MapAdmin();
+    app.MapSeo();
 
     app.Run();
 }

@@ -402,35 +402,61 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetDashboard(AppDbContext db, CancellationToken ct)
     {
-        var desde = DateOnly.FromDateTime(DateTime.Today.AddDays(-30));
+        var hoy   = DateOnly.FromDateTime(DateTime.Today);
+        var desde = hoy.AddDays(-30);
 
+        // Rollups históricos (días anteriores, ya agregados)
         var rollups = await db.AnalyticsRollupsDiarios
-            .Where(r => r.Fecha >= desde)
-            .OrderByDescending(r => r.Fecha)
+            .Where(r => r.Fecha >= desde && r.Fecha < hoy)
             .ToListAsync(ct);
 
-        var totalInicios     = rollups.Sum(r => r.Inicios);
-        var totalCompletados = rollups.Sum(r => r.Completados);
+        // Eventos de hoy en tiempo real (aún no rollupados)
+        var hoyInicio    = new DateTimeOffset(DateTime.Today, TimeSpan.Zero);
+        var eventosHoy   = await db.AnalyticsEventos
+            .Where(e => e.FechaUtc >= hoyInicio)
+            .GroupBy(e => new { e.CalculadoraSlug, e.Modulo, e.TipoEvento })
+            .Select(g => new { g.Key.CalculadoraSlug, g.Key.Modulo, g.Key.TipoEvento, Count = g.Count() })
+            .ToListAsync(ct);
+
+        // Inicios y completados de hoy desde eventos crudos
+        var iniciosHoy      = eventosHoy.Where(e => e.TipoEvento == "inicio").Sum(e => e.Count);
+        var completadosHoy  = eventosHoy.Where(e => e.TipoEvento == "completado").Sum(e => e.Count);
+
+        var totalInicios     = rollups.Sum(r => r.Inicios)      + iniciosHoy;
+        var totalCompletados = rollups.Sum(r => r.Completados)  + completadosHoy;
         var tasaCompletado   = totalInicios > 0
             ? Math.Round((double)totalCompletados / totalInicios * 100, 1)
             : 0;
 
-        var porCalculadora = rollups
+        // Agrupar por calculadora (rollups históricos + hoy)
+        var porCalculadoraRollup = rollups
             .GroupBy(r => r.CalculadoraSlug)
-            .Select(g => new
-            {
-                calculadora  = g.Key,
-                inicios      = g.Sum(r => r.Inicios),
-                completados  = g.Sum(r => r.Completados),
-            })
+            .ToDictionary(g => g.Key, g => new { inicios = (long)g.Sum(r => r.Inicios), completados = (long)g.Sum(r => r.Completados) });
+
+        var slugsHoy = eventosHoy.Select(e => e.CalculadoraSlug).Distinct();
+        foreach (var slug in slugsHoy)
+        {
+            var ini  = eventosHoy.Where(e => e.CalculadoraSlug == slug && e.TipoEvento == "inicio").Sum(e => e.Count);
+            var comp = eventosHoy.Where(e => e.CalculadoraSlug == slug && e.TipoEvento == "completado").Sum(e => e.Count);
+            if (porCalculadoraRollup.TryGetValue(slug, out var existente))
+                porCalculadoraRollup[slug] = new { inicios = existente.inicios + (long)ini, completados = existente.completados + (long)comp };
+            else
+                porCalculadoraRollup[slug] = new { inicios = (long)ini, completados = (long)comp };
+        }
+
+        var porCalculadora = porCalculadoraRollup
+            .Select(kv => new { calculadora = kv.Key, kv.Value.inicios, kv.Value.completados })
             .OrderByDescending(x => x.completados);
 
         return Results.Ok(new
         {
-            periodo          = new { desde = desde.ToString("yyyy-MM-dd"), hasta = DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM-dd") },
-            totales          = new { inicios = totalInicios, completados = totalCompletados, tasaCompletadoPct = tasaCompletado },
+            periodo   = new { desde = desde.ToString("yyyy-MM-dd"), hasta = hoy.ToString("yyyy-MM-dd") },
+            totales   = new { inicios = totalInicios, completados = totalCompletados, tasaCompletadoPct = tasaCompletado },
+            hoy       = new { inicios = iniciosHoy, completados = completadosHoy },
             porCalculadora,
-            rollupsDiarios   = rollups.Select(r => new { r.Fecha, r.CalculadoraSlug, r.Inicios, r.Completados }),
+            rollupsDiarios = rollups
+                .OrderByDescending(r => r.Fecha)
+                .Select(r => new { r.Fecha, r.CalculadoraSlug, r.Inicios, r.Completados }),
         });
     }
 

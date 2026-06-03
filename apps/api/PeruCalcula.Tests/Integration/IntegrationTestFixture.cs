@@ -59,6 +59,48 @@ public sealed class IntegrationTestFixture : IAsyncLifetime
             await db.SaveChangesAsync();
         }
 
+        // Seed bancos/productos/tasas para tests del comparador (F3)
+        if (!await db.Bancos.AnyAsync())
+        {
+            var bcp = new PeruCalcula.Infrastructure.Persistence.Entities.Banco
+            {
+                Nombre = "BCP", Slug = "bcp", LogoUrl = null, SitioUrl = "https://bcp.com.pe",
+                UrlAfiliado = null, EsPatrocinado = false, Activo = true, Orden = 1,
+            };
+            var interbank = new PeruCalcula.Infrastructure.Persistence.Entities.Banco
+            {
+                Nombre = "Interbank", Slug = "interbank", SitioUrl = "https://interbank.pe",
+                EsPatrocinado = false, Activo = true, Orden = 2,
+            };
+            db.Bancos.AddRange(bcp, interbank);
+            await db.SaveChangesAsync();
+
+            var prodBcp = new PeruCalcula.Infrastructure.Persistence.Entities.ProductoFinanciero
+            {
+                BancoId = bcp.Id, Nombre = "Crédito Efectivo BCP", Tipo = "personal", Moneda = "PEN", Activo = true,
+            };
+            var prodInterbank = new PeruCalcula.Infrastructure.Persistence.Entities.ProductoFinanciero
+            {
+                BancoId = interbank.Id, Nombre = "Préstamo Personal Interbank", Tipo = "personal", Moneda = "PEN", Activo = true,
+            };
+            db.ProductosFinancieros.AddRange(prodBcp, prodInterbank);
+            await db.SaveChangesAsync();
+
+            db.TasasHistoricas.AddRange(
+                new PeruCalcula.Infrastructure.Persistence.Entities.TasaHistorica
+                {
+                    ProductoId = prodBcp.Id, Tea = 0.40m, Tcea = 0.42m, ComisionAdmin = 10m,
+                    VigenciaDesde = new DateOnly(2026, 1, 1), Fuente = "SBS / Test", EsReferencial = true,
+                },
+                new PeruCalcula.Infrastructure.Persistence.Entities.TasaHistorica
+                {
+                    ProductoId = prodInterbank.Id, Tea = 0.35m, Tcea = 0.37m, ComisionAdmin = 8m,
+                    VigenciaDesde = new DateOnly(2026, 1, 1), Fuente = "SBS / Test", EsReferencial = true,
+                }
+            );
+            await db.SaveChangesAsync();
+        }
+
         Client = Factory.CreateClient();
     }
 

@@ -145,6 +145,7 @@ try
     app.MapTributario();
     app.MapTributarioF2();
     app.MapFinanzas();
+    app.MapFinanzasF3();
     app.MapAnalytics();
     app.MapGuias();
     app.MapAdmin();

@@ -99,4 +99,77 @@ public sealed class CalculadorasIntegrationTests(IntegrationTestFixture fixture)
         Assert.Equal(HttpStatusCode.OK, live.StatusCode);
         Assert.Equal(HttpStatusCode.OK, ready.StatusCode);
     }
+
+    // ── F3: Comparador ────────────────────────────────────────────────────────
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Get_Comparador_Personal_Returns_Ranking_Ordenado_Por_Tcea()
+    {
+        var resp = await _client.GetAsync("/api/v1/finanzas/comparador?tipo=personal&monto=10000&plazo=24");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        var ranking = json.GetProperty("ranking");
+
+        Assert.True(ranking.GetArrayLength() >= 2, "Debe haber al menos 2 productos en ranking.");
+
+        // Verificar orden ascendente por TCEA
+        decimal? tceaAnterior = null;
+        foreach (var item in ranking.EnumerateArray())
+        {
+            var tcea = item.GetProperty("tcea").GetDecimal();
+            if (tceaAnterior.HasValue)
+                Assert.True(tcea >= tceaAnterior, "El ranking debe estar ordenado por TCEA ascendente.");
+            tceaAnterior = tcea;
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Get_Comparador_TipoInvalido_Returns_BadRequest()
+    {
+        var resp = await _client.GetAsync("/api/v1/finanzas/comparador?tipo=invalido&monto=10000&plazo=24");
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Get_Bancos_Returns_Bancos_Activos()
+    {
+        var resp = await _client.GetAsync("/api/v1/finanzas/bancos");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(json.GetArrayLength() >= 1);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Post_CreditoVehicular_Returns_Cronograma()
+    {
+        var body = new { monto = 30000, plazoMeses = 60, tea = 20 };
+        var resp = await _client.PostAsJsonAsync("/api/v1/finanzas/credito-vehicular", body);
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(60, json.GetProperty("cronograma").GetArrayLength());
+        Assert.True(json.GetProperty("resultado").GetProperty("cuota").GetDecimal() > 0);
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    public async Task Post_CreditoHipotecario_Returns_Cronograma()
+    {
+        var body = new { monto = 200000, plazoMeses = 240, tea = 9.5 };
+        var resp = await _client.PostAsJsonAsync("/api/v1/finanzas/credito-hipotecario", body);
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(240, json.GetProperty("cronograma").GetArrayLength());
+    }
 }

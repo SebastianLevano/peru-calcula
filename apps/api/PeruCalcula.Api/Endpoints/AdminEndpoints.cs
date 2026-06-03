@@ -28,7 +28,21 @@ public static class AdminEndpoints
 
         // Tasas
         group.MapGet   ("/tasas",            GetTasas).RequireAuthorization("admin");
+        group.MapPost  ("/tasas",            CreateTasa).RequireAuthorization("admin");
         group.MapPut   ("/tasas/{id}",       UpdateTasa).RequireAuthorization("admin");
+        group.MapDelete("/tasas/{id}",       DeleteTasa).RequireAuthorization("admin");
+
+        // Bancos CRUD (F3)
+        group.MapGet   ("/bancos",           GetBancos).RequireAuthorization("admin");
+        group.MapPost  ("/bancos",           CreateBanco).RequireAuthorization("admin");
+        group.MapPut   ("/bancos/{id}",      UpdateBanco).RequireAuthorization("admin");
+        group.MapDelete("/bancos/{id}",      DeleteBanco).RequireAuthorization("admin");
+
+        // Productos financieros CRUD (F3)
+        group.MapGet   ("/bancos/{bancoId}/productos",     GetProductos).RequireAuthorization("admin");
+        group.MapPost  ("/bancos/{bancoId}/productos",     CreateProducto).RequireAuthorization("admin");
+        group.MapPut   ("/productos/{id}",                 UpdateProducto).RequireAuthorization("admin");
+        group.MapDelete("/productos/{id}",                 DeleteProducto).RequireAuthorization("admin");
 
         // Dashboard analytics (desde rollups)
         group.MapGet   ("/analytics/dashboard", GetDashboard).RequireAuthorization("admin");
@@ -194,6 +208,196 @@ public static class AdminEndpoints
         return Results.Ok(new { tasa.Id, tasa.Tea, tasa.Tcea });
     }
 
+    // ── Tasas CRUD ────────────────────────────────────────────────────────────
+
+    private static async Task<IResult> CreateTasa(
+        CreateTasaRequest req,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var producto = await db.ProductosFinancieros.FindAsync([req.ProductoId], ct);
+        if (producto is null) return Results.NotFound(new { error = "Producto no encontrado." });
+
+        // Cerrar tasa vigente anterior
+        var tasaAnterior = await db.TasasHistoricas
+            .Where(t => t.ProductoId == req.ProductoId && t.VigenciaHasta == null)
+            .FirstOrDefaultAsync(ct);
+
+        if (tasaAnterior is not null)
+            tasaAnterior.VigenciaHasta = req.VigenciaDesde.AddDays(-1);
+
+        var nueva = new TasaHistorica
+        {
+            ProductoId    = req.ProductoId,
+            Tea           = req.Tea,
+            Tcea          = req.Tcea,
+            ComisionAdmin = req.ComisionAdmin,
+            VigenciaDesde = req.VigenciaDesde,
+            VigenciaHasta = null,
+            Fuente        = req.Fuente,
+            EsReferencial = req.EsReferencial,
+        };
+        db.TasasHistoricas.Add(nueva);
+        await db.SaveChangesAsync(ct);
+
+        return Results.Created($"/api/v1/admin/tasas/{nueva.Id}", new { nueva.Id });
+    }
+
+    private static async Task<IResult> DeleteTasa(int id, AppDbContext db, CancellationToken ct)
+    {
+        var tasa = await db.TasasHistoricas.FindAsync([id], ct);
+        if (tasa is null) return Results.NotFound();
+
+        // Soft-delete: cierra la vigencia con la fecha de hoy
+        tasa.VigenciaHasta = DateOnly.FromDateTime(DateTime.UtcNow);
+        await db.SaveChangesAsync(ct);
+
+        return Results.NoContent();
+    }
+
+    // ── Bancos CRUD ────────────────────────────────────────────────────────────
+
+    private static async Task<IResult> GetBancos(AppDbContext db, CancellationToken ct)
+    {
+        var bancos = await db.Bancos
+            .Include(b => b.Productos)
+            .OrderBy(b => b.Orden)
+            .ToListAsync(ct);
+
+        return Results.Ok(bancos.Select(b => new
+        {
+            b.Id, b.Nombre, b.Slug, b.LogoUrl, b.SitioUrl, b.UrlAfiliado,
+            b.EsPatrocinado, b.Activo, b.Orden,
+            productos = b.Productos.Count,
+        }));
+    }
+
+    private static async Task<IResult> CreateBanco(
+        CreateBancoRequest req,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        if (await db.Bancos.AnyAsync(b => b.Slug == req.Slug, ct))
+            return Results.Conflict(new { error = "Ya existe un banco con ese slug." });
+
+        var banco = new Banco
+        {
+            Nombre        = req.Nombre,
+            Slug          = req.Slug,
+            LogoUrl       = req.LogoUrl,
+            SitioUrl      = req.SitioUrl,
+            UrlAfiliado   = req.UrlAfiliado,
+            EsPatrocinado = req.EsPatrocinado,
+            Activo        = true,
+            Orden         = req.Orden,
+        };
+        db.Bancos.Add(banco);
+        await db.SaveChangesAsync(ct);
+
+        return Results.Created($"/api/v1/admin/bancos/{banco.Id}", new { banco.Id, banco.Nombre });
+    }
+
+    private static async Task<IResult> UpdateBanco(
+        int id,
+        UpdateBancoRequest req,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var banco = await db.Bancos.FindAsync([id], ct);
+        if (banco is null) return Results.NotFound();
+
+        banco.Nombre        = req.Nombre;
+        banco.LogoUrl       = req.LogoUrl;
+        banco.SitioUrl      = req.SitioUrl;
+        banco.UrlAfiliado   = req.UrlAfiliado;
+        banco.EsPatrocinado = req.EsPatrocinado;
+        banco.Activo        = req.Activo;
+        banco.Orden         = req.Orden;
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { banco.Id, banco.Nombre, banco.Activo });
+    }
+
+    private static async Task<IResult> DeleteBanco(int id, AppDbContext db, CancellationToken ct)
+    {
+        var banco = await db.Bancos.FindAsync([id], ct);
+        if (banco is null) return Results.NotFound();
+
+        banco.Activo = false;
+        await db.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
+    // ── Productos financieros CRUD ─────────────────────────────────────────────
+
+    private static async Task<IResult> GetProductos(int bancoId, AppDbContext db, CancellationToken ct)
+    {
+        var productos = await db.ProductosFinancieros
+            .Include(p => p.Tasas.Where(t => t.VigenciaHasta == null))
+            .Where(p => p.BancoId == bancoId)
+            .OrderBy(p => p.Nombre)
+            .ToListAsync(ct);
+
+        return Results.Ok(productos.Select(p => new
+        {
+            p.Id, p.Nombre, p.Tipo, p.Moneda, p.Activo,
+            tasaVigente = p.Tasas.FirstOrDefault() is { } t
+                ? new { t.Id, t.Tea, t.Tcea, t.ComisionAdmin, t.VigenciaDesde, t.Fuente, t.EsReferencial, t.Xmin }
+                : null,
+        }));
+    }
+
+    private static async Task<IResult> CreateProducto(
+        int bancoId,
+        CreateProductoRequest req,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        if (!await db.Bancos.AnyAsync(b => b.Id == bancoId && b.Activo, ct))
+            return Results.NotFound(new { error = "Banco no encontrado o inactivo." });
+
+        var producto = new ProductoFinanciero
+        {
+            BancoId = bancoId,
+            Nombre  = req.Nombre,
+            Tipo    = req.Tipo,
+            Moneda  = req.Moneda,
+            Activo  = true,
+        };
+        db.ProductosFinancieros.Add(producto);
+        await db.SaveChangesAsync(ct);
+
+        return Results.Created($"/api/v1/admin/productos/{producto.Id}", new { producto.Id, producto.Nombre });
+    }
+
+    private static async Task<IResult> UpdateProducto(
+        int id,
+        UpdateProductoRequest req,
+        AppDbContext db,
+        CancellationToken ct)
+    {
+        var producto = await db.ProductosFinancieros.FindAsync([id], ct);
+        if (producto is null) return Results.NotFound();
+
+        producto.Nombre = req.Nombre;
+        producto.Tipo   = req.Tipo;
+        producto.Moneda = req.Moneda;
+        producto.Activo = req.Activo;
+
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { producto.Id, producto.Nombre, producto.Activo });
+    }
+
+    private static async Task<IResult> DeleteProducto(int id, AppDbContext db, CancellationToken ct)
+    {
+        var producto = await db.ProductosFinancieros.FindAsync([id], ct);
+        if (producto is null) return Results.NotFound();
+
+        producto.Activo = false;
+        await db.SaveChangesAsync(ct);
+        return Results.NoContent();
+    }
+
     // ── Dashboard ─────────────────────────────────────────────────────────────
 
     private static async Task<IResult> GetDashboard(AppDbContext db, CancellationToken ct)
@@ -271,3 +475,12 @@ public sealed record LoginRequest(string Email, string Password);
 public sealed record RefreshRequest(string RefreshToken);
 public sealed record UpdateParametroRequest(string Valor, string Fuente, DateOnly VigenciaDesde, uint Xmin);
 public sealed record UpdateTasaRequest(decimal Tea, decimal Tcea, decimal? ComisionAdmin, string Fuente, DateOnly VigenciaDesde, uint Xmin);
+public sealed record CreateTasaRequest(int ProductoId, decimal Tea, decimal Tcea, decimal? ComisionAdmin, string Fuente, DateOnly VigenciaDesde, bool EsReferencial);
+
+// Bancos
+public sealed record CreateBancoRequest(string Nombre, string Slug, string? LogoUrl, string? SitioUrl, string? UrlAfiliado, bool EsPatrocinado, int Orden);
+public sealed record UpdateBancoRequest(string Nombre, string? LogoUrl, string? SitioUrl, string? UrlAfiliado, bool EsPatrocinado, bool Activo, int Orden);
+
+// Productos
+public sealed record CreateProductoRequest(string Nombre, string Tipo, string Moneda);
+public sealed record UpdateProductoRequest(string Nombre, string Tipo, string Moneda, bool Activo);

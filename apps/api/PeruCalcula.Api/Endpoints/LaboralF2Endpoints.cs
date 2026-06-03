@@ -129,15 +129,18 @@ public static class LaboralF2Endpoints
         var asigPct = await parametros.ObtenerDecimalAsync(ParametroClaves.AsignacionFamiliar, ct: ct);
 
         var hoy = DateOnly.FromDateTime(clock.UtcNow.DateTime);
+        // Si el contrato terminó en el pasado, el período se calcula hasta esa fecha
+        var fechaReferencia = req.FechaCese ?? hoy;
+
         var parms = new ParametrosVacaciones(rmv, asigPct,
-            hoy.ToString("yyyy-MM"), new DateOnly(1992, 12, 8));
+            fechaReferencia.ToString("yyyy-MM"), new DateOnly(1992, 12, 8));
 
         int anios, mesesTruncos, diasAdicionales;
         VacacionesPeriodoResultado? periodo = null;
 
         if (req.FechaIngreso.HasValue)
         {
-            periodo         = PeriodoLaboralCalculador.CalcularVacaciones(req.FechaIngreso.Value, hoy);
+            periodo         = PeriodoLaboralCalculador.CalcularVacaciones(req.FechaIngreso.Value, fechaReferencia);
             anios           = periodo.AniosCompletados;
             mesesTruncos    = periodo.MesesTruncos;
             diasAdicionales = periodo.DiasAdicionales;
@@ -200,6 +203,7 @@ public static class LaboralF2Endpoints
             {
                 nombre            = periodo.Nombre,
                 ultimoAniversario = periodo.UltimoAniversario.ToString("yyyy-MM-dd"),
+                fechaCese         = req.FechaCese?.ToString("yyyy-MM-dd"),
                 aniosCompletados  = periodo.AniosCompletados,
                 mesesTruncos      = periodo.MesesTruncos,
                 diasAdicionales   = periodo.DiasAdicionales,
@@ -237,6 +241,7 @@ public sealed record VacacionesRequest(
     decimal   RemuneracionBasica,
     bool      TieneHijos,
     DateOnly? FechaIngreso        = null,
+    DateOnly? FechaCese           = null,   // si el contrato terminó, la fecha real de cese
     int?      AniosCompletados    = null,
     int?      MesesTruncos        = null,
     int?      DiasAdicionales     = null,
@@ -244,7 +249,7 @@ public sealed record VacacionesRequest(
     decimal   PromedioHorasExtras = 0,
     decimal   PromedioComisiones  = 0,
     decimal   OtrosBonos          = 0,
-    int       DiasFaltasAnio      = 0   // faltas en el año: ≥ 30 → pierde derecho vacacional (D.Leg. 713 Art. 11)
+    int       DiasFaltasAnio      = 0
 );
 
 public sealed class GratificacionRequestValidator : AbstractValidator<GratificacionRequest>
@@ -280,6 +285,9 @@ public sealed class VacacionesRequestValidator : AbstractValidator<VacacionesReq
         RuleFor(x => x.PromedioComisiones).GreaterThanOrEqualTo(0);
         RuleFor(x => x.OtrosBonos).GreaterThanOrEqualTo(0);
         RuleFor(x => x.DiasFaltasAnio).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.FechaCese)
+            .Must((req, fechaCese) => !fechaCese.HasValue || !req.FechaIngreso.HasValue || fechaCese.Value >= req.FechaIngreso.Value)
+            .WithMessage("La fecha de cese no puede ser anterior a la fecha de ingreso.");
         RuleFor(x => x)
             .Must(x => x.FechaIngreso.HasValue || x.AniosCompletados.HasValue)
             .WithMessage("Indica 'fechaIngreso' o 'aniosCompletados'.");

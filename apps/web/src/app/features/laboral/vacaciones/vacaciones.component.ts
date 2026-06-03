@@ -9,7 +9,7 @@ import { CalcInputComponent } from '../../../shared/ui/calc-input.component';
 import { InputMesesComponent } from '../../../shared/ui/input-meses.component';
 
 interface VacPeriodo {
-  nombre: string; ultimoAniversario: string;
+  nombre: string; ultimoAniversario: string; fechaCese: string | null;
   aniosCompletados: number; mesesTruncos: number; diasAdicionales: number;
 }
 interface VacRespuesta {
@@ -82,10 +82,23 @@ function ultimos12Meses(): string[] {
             @if (tipoVacaciones() === 'ordinarias') {
               Los años completos se calculan automáticamente.
             } @else {
-              Los meses y días truncos se calculan automáticamente desde el último aniversario.
+              Años completos y meses truncos se calculan desde el último aniversario hasta la fecha de cese.
             }
           </p>
         </div>
+
+        @if (tipoVacaciones() === 'truncas') {
+          <div>
+            <label for="fechaCese" class="block text-sm font-medium text-gray-700 mb-1">
+              Fecha de cese <span class="text-gray-400 font-normal">(opcional)</span>
+            </label>
+            <input type="date" id="fechaCese" formControlName="fechaCese"
+                   class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <p class="mt-1 text-xs text-gray-500">
+              Si el contrato terminó antes de hoy, ingresá la fecha real de cese para calcular el período exacto.
+            </p>
+          </div>
+        }
 
         @if (tipoVacaciones() === 'ordinarias') {
           <app-calc-input label="Días de vacaciones no gozados (de años anteriores)" inputId="diasPend"
@@ -144,6 +157,11 @@ function ultimos12Meses(): string[] {
                 · {{ resultado()!.periodo!.mesesTruncos }} mes{{ resultado()!.periodo!.mesesTruncos !== 1 ? 'es' : '' }} trunco{{ resultado()!.periodo!.mesesTruncos !== 1 ? 's' : '' }}
               }
             </p>
+            @if (resultado()!.periodo!.fechaCese) {
+              <p class="text-blue-600 mt-1 text-xs">
+                Fecha de cese: {{ resultado()!.periodo!.fechaCese | date:'dd MMM yyyy':'':'es' }}
+              </p>
+            }
           </div>
         }
 
@@ -180,6 +198,7 @@ export class VacacionesComponent implements OnInit, AfterViewInit {
     remuneracionBasica: [null as number | null, [Validators.required, Validators.min(1)]],
     tieneHijos:         [false],
     fechaIngreso:       [null as string | null, Validators.required],
+    fechaCese:          [null as string | null],
     diasPendientes:     [0, [Validators.min(0)]],
     diasFaltasAnio:     [0, [Validators.min(0)]],
   });
@@ -201,11 +220,14 @@ export class VacacionesComponent implements OnInit, AfterViewInit {
 
     const v = this.form.value;
 
+    const esTruncas = this.tipoVacaciones() === 'truncas';
+
     this.api.post<VacRespuesta>('/laboral/vacaciones', {
       remuneracionBasica:  v.remuneracionBasica,
       tieneHijos:          v.tieneHijos,
       fechaIngreso:        v.fechaIngreso,
-      diasPendientes:      this.tipoVacaciones() === 'ordinarias' ? (v.diasPendientes ?? 0) : 0,
+      fechaCese:           esTruncas && v.fechaCese ? v.fechaCese : null,
+      diasPendientes:      esTruncas ? 0 : (v.diasPendientes ?? 0),
       promedioHorasExtras: this.horasRef?.promedio()      ?? 0,
       promedioComisiones:  this.comisionesRef?.promedio() ?? 0,
       otrosBonos:          this.bonosRef?.promedio()      ?? 0,

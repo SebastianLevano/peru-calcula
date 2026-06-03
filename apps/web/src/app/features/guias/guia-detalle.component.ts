@@ -52,7 +52,7 @@ interface GuiaDetalle {
             </p>
           </header>
 
-          <!-- Markdown sanitizado renderizado como HTML — allowlist + DOMPurify (ADR-0010) -->
+          <!-- Contenido renderizado: SSR entrega HTML al crawler; browser lo sanitiza con DOMPurify -->
           <div class="prose prose-stone mt-8 max-w-none
                       prose-headings:font-display prose-headings:text-ink-900
                       prose-a:text-primary-700 prose-a:no-underline hover:prose-a:underline
@@ -70,9 +70,9 @@ export class GuiaDetalleComponent implements OnInit {
   private readonly seo      = inject(SeoService);
   private readonly platform = inject(PLATFORM_ID);
 
-  readonly guia        = signal<GuiaDetalle | null>(null);
-  readonly cargando    = signal(true);
-  readonly htmlSanitizado = signal('');
+  readonly guia            = signal<GuiaDetalle | null>(null);
+  readonly cargando        = signal(true);
+  readonly htmlSanitizado  = signal('');
 
   ngOnInit() {
     this.api.get<GuiaDetalle>(`/guias/${this.slug}`).subscribe({
@@ -92,26 +92,30 @@ export class GuiaDetalleComponent implements OnInit {
             publisher: { '@type': 'Organization', name: 'Perú Calcula', url: 'https://perucalcula.pe' },
           },
         });
-        if (isPlatformBrowser(this.platform)) {
-          this.htmlSanitizado.set(await this.renderMarkdown(data.cuerpoMarkdown));
-        }
+        // Renderizar siempre (SSR + browser) para que el crawler reciba HTML con contenido
+        this.htmlSanitizado.set(await this.renderMarkdown(data.cuerpoMarkdown));
       },
       error: () => { this.guia.set(null); this.cargando.set(false); },
     });
   }
 
   private async renderMarkdown(md: string): Promise<string> {
-    // Lazy: marked + DOMPurify solo en rutas de guías (no contamina bundle de calculadoras)
-    const [{ marked }, DOMPurify] = await Promise.all([
-      import('marked'),
-      import('dompurify'),
-    ]);
-
+    // `marked` funciona en Node.js y en el browser (lazy, no contamina bundle de calculadoras)
+    const { marked } = await import('marked');
     const html = await marked.parse(md);
-    return DOMPurify.default.sanitize(html, {
+
+    // DOMPurify solo existe en el browser (necesita DOM); en SSR el contenido
+    // viene del admin que lo almacena saneado, así que se puede usar directamente.
+    if (!isPlatformBrowser(this.platform)) {
+      return html;
+    }
+
+    const DOMPurify = (await import('dompurify')).default;
+    return DOMPurify.sanitize(html, {
       ALLOWED_TAGS: [
         'h1','h2','h3','h4','h5','h6','p','ul','ol','li',
-        'strong','em','blockquote','code','pre','a','br','hr','table','thead','tbody','tr','th','td',
+        'strong','em','blockquote','code','pre','a','br','hr',
+        'table','thead','tbody','tr','th','td',
       ],
       ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
       FORCE_BODY: false,

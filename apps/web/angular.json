@@ -33,9 +33,15 @@
               "src/styles.css"
             ],
             "server": "src/main.server.ts",
-            "outputMode": "static",
+            "outputMode": "server",
+            "ssr": { "entry": "src/server.ts" },
             "security": {
-              "allowedHosts": []
+              "allowedHosts": [
+                "localhost",
+                "127.0.0.1",
+                "perucalcula.pe",
+                "www.perucalcula.pe"
+              ]
             },
             "prerender": true
           },

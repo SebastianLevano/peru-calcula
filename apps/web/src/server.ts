@@ -13,19 +13,7 @@ const app = express();
 const angularApp = new AngularNodeAppEngine();
 
 /**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/{*splat}', (req, res) => {
- *   // Handle API request
- * });
- * ```
- */
-
-/**
- * Serve static files from /browser
+ * Archivos estáticos del bundle Angular (js, css, fuentes, imágenes, robots.txt…)
  */
 app.use(
   express.static(browserDistFolder, {
@@ -36,7 +24,26 @@ app.use(
 );
 
 /**
- * Handle all other requests by rendering the Angular application.
+ * Sitemap dinámico: proxeado desde el API backend para incluir guías publicadas.
+ * En producción el nginx también puede hacer este proxy directamente.
+ */
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const apiUrl = process.env['API_URL'] || 'http://localhost:5117';
+    const response = await fetch(`${apiUrl}/sitemap.xml`, {
+      headers: { 'X-Forwarded-Host': req.headers.host ?? '' },
+    });
+    const body = await response.text();
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hora
+    res.send(body);
+  } catch {
+    res.status(503).send('<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"/>');
+  }
+});
+
+/**
+ * Todas las demás rutas: Angular SSR
  */
 app.use((req, res, next) => {
   angularApp
@@ -46,21 +53,13 @@ app.use((req, res, next) => {
 });
 
 /**
- * Start the server if this module is the main entry point, or it is ran via PM2.
- * The server listens on the port defined by the `PORT` environment variable, or defaults to 4000.
+ * Arrancar el servidor si se ejecuta directamente o via PM2.
  */
 if (isMainModule(import.meta.url) || process.env['pm_id']) {
   const port = process.env['PORT'] || 4000;
-  app.listen(port, (error) => {
-    if (error) {
-      throw error;
-    }
-
+  app.listen(port, () => {
     console.log(`Node Express server listening on http://localhost:${port}`);
   });
 }
 
-/**
- * Request handler used by the Angular CLI (for dev-server and during build) or Firebase Cloud Functions.
- */
 export const reqHandler = createNodeRequestHandler(app);

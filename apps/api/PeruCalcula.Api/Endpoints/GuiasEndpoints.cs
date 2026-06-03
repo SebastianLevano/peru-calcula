@@ -21,11 +21,27 @@ public static class GuiasEndpoints
         adm.MapPost  ("/",       CrearGuia)       .WithName("CrearGuia");
         adm.MapPut   ("/{id}",   ActualizarGuia)  .WithName("ActualizarGuia");
         adm.MapDelete("/{id}",   EliminarGuia)    .WithName("EliminarGuia");
+        adm.MapPost  ("/seed",   SeedGuiasIniciales).WithName("SeedGuiasIniciales");
 
         return app;
     }
 
     // ── Admin ─────────────────────────────────────────────────────────────────
+
+    private static async Task<IResult> SeedGuiasIniciales(AppDbContext db, CancellationToken ct)
+    {
+        var insertadas = 0;
+        foreach (var guia in SeedGuias.Iniciales())
+        {
+            if (!await db.Guias.AnyAsync(g => g.Slug == guia.Slug, ct))
+            {
+                db.Guias.Add(guia);
+                insertadas++;
+            }
+        }
+        await db.SaveChangesAsync(ct);
+        return Results.Ok(new { insertadas, mensaje = $"{insertadas} guías insertadas." });
+    }
 
     private static async Task<IResult> ListarGuiasAdmin(AppDbContext db, CancellationToken ct)
     {

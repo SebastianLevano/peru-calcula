@@ -29,5 +29,8 @@ export const routes: Routes = [
   { path: 'terminos',   loadComponent: () => import('./features/legal/terminos.component').then(m => m.TerminosComponent) },
   { path: 'acerca',     loadComponent: () => import('./features/legal/acerca.component').then(m => m.AcercaComponent) },
 
+  // Admin (client-side only, no prerender)
+  { path: 'admin', loadChildren: () => import('./features/admin/admin.routes').then(m => m.adminRoutes) },
+
   { path: '**', redirectTo: '' },
 ];

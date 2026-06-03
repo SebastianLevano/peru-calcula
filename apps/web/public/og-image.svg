@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- Fondo papel cálido -->
+  <rect width="1200" height="630" fill="#faf9f5"/>
+
+  <!-- Franja verde fiscal izquierda -->
+  <rect width="16" height="630" fill="#0a564e"/>
+
+  <!-- Bloque icono -->
+  <rect x="72" y="190" width="120" height="120" rx="20" fill="#0a564e"/>
+  <!-- Documento interior -->
+  <path fill="#faf9f5" d="M96 210h52l18 18v64a4 4 0 0 1-4 4H96a4 4 0 0 1-4-4v-78a4 4 0 0 1 4-4z"/>
+  <path fill="#cfe6e1" d="M148 210l18 18h-14a4 4 0 0 1-4-4v-14z"/>
+  <rect x="100" y="234" width="36" height="5" rx="2.5" fill="#0d6e63"/>
+  <rect x="100" y="246" width="44" height="5" rx="2.5" fill="#a3d0c7"/>
+  <!-- Check ámbar -->
+  <circle cx="154" cy="286" r="16" fill="#c2660f"/>
+  <path d="m148 286 5 5 9-10" fill="none" stroke="#faf9f5" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Nombre de marca -->
+  <text x="216" y="222" font-family="Georgia, 'Times New Roman', serif" font-size="52" font-weight="700" fill="#14201d">Perú Calcula</text>
+  <text x="216" y="270" font-family="'Helvetica Neue', Arial, sans-serif" font-size="26" fill="#45524e">Calculadoras laborales, tributarias y financieras</text>
+
+  <!-- Separador -->
+  <rect x="72" y="340" width="1056" height="1.5" fill="#e6e2d6"/>
+
+  <!-- Tags de calculadoras -->
+  <rect x="72" y="378" width="160" height="40" rx="8" fill="#e9f3f1"/>
+  <text x="152" y="404" font-family="'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#0a564e" text-anchor="middle" font-weight="600">CTS</text>
+
+  <rect x="248" y="378" width="200" height="40" rx="8" fill="#e9f3f1"/>
+  <text x="348" y="404" font-family="'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#0a564e" text-anchor="middle" font-weight="600">Gratificación</text>
+
+  <rect x="464" y="378" width="190" height="40" rx="8" fill="#fbf0e2"/>
+  <text x="559" y="404" font-family="'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#b85f0e" text-anchor="middle" font-weight="600">Honorarios</text>
+
+  <rect x="670" y="378" width="130" height="40" rx="8" fill="#fbf0e2"/>
+  <text x="735" y="404" font-family="'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#b85f0e" text-anchor="middle" font-weight="600">NRUS · RER</text>
+
+  <rect x="816" y="378" width="176" height="40" rx="8" fill="#e9f3f1"/>
+  <text x="904" y="404" font-family="'Helvetica Neue', Arial, sans-serif" font-size="18" fill="#0a564e" text-anchor="middle" font-weight="600">Créditos · TCEA</text>
+
+  <!-- Claim de confianza -->
+  <text x="72" y="490" font-family="'Helvetica Neue', Arial, sans-serif" font-size="22" fill="#45524e">Normativa peruana vigente · Fuente legal visible · Gratis y sin registro</text>
+
+  <!-- URL -->
+  <text x="72" y="555" font-family="Georgia, 'Times New Roman', serif" font-size="22" fill="#0a564e" font-weight="600">perucalcula.pe</text>
+</svg>

@@ -48,7 +48,11 @@ app.get('/sitemap.xml', async (req, res) => {
 app.use((req, res, next) => {
   angularApp
     .handle(req)
-    .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
+    .then((response) => {
+      if (!response) return next();
+      // Angular devuelve 200 para rutas 404 — lo corregimos inspeccionando el status
+      writeResponseToNodeResponse(response, res);
+    })
     .catch(next);
 });
 

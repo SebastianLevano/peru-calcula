@@ -32,5 +32,5 @@ export const routes: Routes = [
   // Admin (client-side only, no prerender)
   { path: 'admin', loadChildren: () => import('./features/admin/admin.routes').then(m => m.adminRoutes) },
 
-  { path: '**', redirectTo: '' },
+  { path: '**', loadComponent: () => import('./features/not-found/not-found.component').then(m => m.NotFoundComponent) },
 ];

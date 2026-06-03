@@ -1,7 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { AdminAuthService } from './admin-auth.service';
 import { LogoComponent } from '../../shared/layout/logo.component';
+import { SeoService } from '../../core/seo.service';
 
 const NAV = [
   { path: '/admin/dashboard',  label: 'Dashboard',   icon: 'chart' },
@@ -87,8 +88,14 @@ const NAV = [
     </div>
   `,
 })
-export class AdminLayoutComponent {
-  readonly auth       = inject(AdminAuthService);
+export class AdminLayoutComponent implements OnInit {
+  private readonly seo = inject(SeoService);
+  readonly auth        = inject(AdminAuthService);
+
+  ngOnInit() {
+    // Evitar indexación de todas las páginas del panel admin
+    this.seo.set({ title: 'Admin', description: '', noindex: true });
+  }
   readonly nav        = NAV;
   readonly mobileMenu = signal(false);
 

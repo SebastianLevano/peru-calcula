@@ -1,0 +1,115 @@
+{
+  "title": "Perú Calcula — Overview",
+  "uid": "perucalcula-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Cálculos completados (total)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "sum(increase(perucalcula_calculaciones_completadas_total[24h]))",
+        "legendFormat": "Completados (24h)"
+      }],
+      "options": { "colorMode": "background", "graphMode": "area" }
+    },
+    {
+      "id": 2,
+      "title": "Tasa de completado (%)",
+      "type": "stat",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "100 * sum(increase(perucalcula_calculaciones_completadas_total[24h])) / sum(increase(perucalcula_calculaciones_iniciadas_total[24h]))",
+        "legendFormat": "Tasa completado"
+      }],
+      "options": { "colorMode": "background", "unit": "percent" }
+    },
+    {
+      "id": 3,
+      "title": "Consultas comparador (24h)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "sum(increase(perucalcula_comparador_consultas_total[24h]))",
+        "legendFormat": "Comparador"
+      }]
+    },
+    {
+      "id": 4,
+      "title": "Latencia API (p99)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "histogram_quantile(0.99, sum(rate(http_server_request_duration_seconds_bucket[5m])) by (le))",
+        "legendFormat": "p99"
+      }],
+      "options": { "unit": "s" }
+    },
+    {
+      "id": 5,
+      "title": "Cálculos completados por calculadora",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "sum by (calculadora) (rate(perucalcula_calculaciones_completadas_total[5m]))",
+        "legendFormat": "{{calculadora}}"
+      }]
+    },
+    {
+      "id": 6,
+      "title": "Latencia HTTP por endpoint (p95)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "histogram_quantile(0.95, sum by (le, http_route) (rate(http_server_request_duration_seconds_bucket[5m])))",
+        "legendFormat": "{{http_route}}"
+      }],
+      "options": { "unit": "s" }
+    },
+    {
+      "id": 7,
+      "title": "Cola analytics (profundidad)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 12, "w": 8, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "perucalcula_analytics_queue_depth",
+        "legendFormat": "Profundidad cola"
+      }]
+    },
+    {
+      "id": 8,
+      "title": "Errores HTTP 5xx",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 12, "w": 8, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~\"5..\"}[5m]))",
+        "legendFormat": "5xx/s"
+      }],
+      "options": { "custom": { "fillOpacity": 20 } }
+    },
+    {
+      "id": 9,
+      "title": "Memoria .NET (heap)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 12, "w": 8, "h": 6 },
+      "datasource": "Prometheus",
+      "targets": [{
+        "expr": "process_runtime_dotnet_gc_heap_size_bytes",
+        "legendFormat": "Heap bytes"
+      }],
+      "options": { "unit": "bytes" }
+    }
+  ]
+}

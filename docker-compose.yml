@@ -9,6 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - pgbackups:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -23,11 +24,15 @@ services:
       ASPNETCORE_ENVIRONMENT:                     Development
       ConnectionStrings__DefaultConnection:       "Host=db;Database=peru_calcula_dev;Username=postgres;Password=postgres"
       Cors__Origins__0:                           "http://localhost:4200"
+      OpenTelemetry__Enabled:                     "true"
+      OpenTelemetry__Endpoint:                    "http://otel-collector:4317"
     ports:
       - "5000:8080"
     depends_on:
       db:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
 
   web:
     build:
@@ -38,5 +43,74 @@ services:
     depends_on:
       - api
 
+  # ── Backup diario (ADR-30) ────────────────────────────────────────────────
+  backup:
+    image: postgres:17-alpine
+    environment:
+      PGPASSWORD: postgres
+    volumes:
+      - pgbackups:/backups
+      - ./docker/backup.sh:/backup.sh:ro
+    entrypoint: ["sh", "-c", "crond -f -l 8"]
+    # Backup diario a las 03:00 UTC
+    command: ["sh", "-c", 'echo "0 3 * * * sh /backup.sh" | crontab - && crond -f -l 8']
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ── OTel Collector ────────────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.105.0
+    volumes:
+      - ./docker/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "8888:8888"   # métricas internas del collector
+
+  # ── Prometheus ────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    depends_on:
+      - otel-collector
+
+  # ── Loki ─────────────────────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:3.0.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki_data:/loki
+
+  # ── Grafana ───────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.1.0
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED:   "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE:  Admin
+      GF_AUTH_DISABLE_LOGIN_FORM:  "true"
+      GF_FEATURE_TOGGLES_ENABLE:   traceqlEditor
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+
 volumes:
   pgdata:
+  pgbackups:
+  prometheus_data:
+  loki_data:
+  grafana_data:

@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using PeruCalcula.Api.Telemetry;
 using PeruCalcula.Domain.Finanzas;
 using PeruCalcula.Infrastructure.Persistence;
 using PeruCalcula.Shared;
@@ -41,6 +42,7 @@ public static class FinanzasF3Endpoints
         decimal monto,
         int     plazo,
         AppDbContext db,
+        PeruCalculaMetrics? metrics,
         CancellationToken ct)
     {
         tipo = tipo.ToLowerInvariant();
@@ -120,6 +122,11 @@ public static class FinanzasF3Endpoints
         var patrocinados = resultados
             .Where(r => (bool)((dynamic)r).banco.esPatrocinado)
             .ToList();
+
+        metrics?.ComparadorConsultas.Add(1, new KeyValuePair<string, object?>("tipo", tipo));
+        metrics?.CalculacionesCompletadas.Add(1,
+            new KeyValuePair<string, object?>("calculadora", "comparador"),
+            new KeyValuePair<string, object?>("modulo", "finanzas"));
 
         return Results.Ok(new
         {

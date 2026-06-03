@@ -1,6 +1,9 @@
 using PeruCalcula.Infrastructure.Persistence.Entities;
 using PeruCalcula.Shared.Contracts;
 
+// Nota: SeedBancosF4 agrega registros representativos del mercado peruano.
+// UrlAfiliado debe reemplazarse con los enlaces de afiliación reales al firmar acuerdos.
+
 namespace PeruCalcula.Infrastructure.Persistence;
 
 /// <summary>
@@ -146,4 +149,24 @@ public static class SeedParametros
             VigenciaDesde = new DateOnly(2017, 1, 1)
         },
     ];
+
+    /// <summary>
+    /// Seed de bancos y productos representativos del mercado peruano (F4).
+    /// Tasas referenciales según publicaciones SBS 2026.
+    /// UrlAfiliado: placeholder — reemplazar con enlace real al formalizar acuerdo.
+    /// </summary>
+    public static (IReadOnlyList<Banco>, IReadOnlyList<ProductoFinanciero>, IReadOnlyList<TasaHistorica>) BancosF4()
+    {
+        var bcp = new Banco { Nombre = "BCP", Slug = "bcp", SitioUrl = "https://www.viabcp.com", UrlAfiliado = null, EsPatrocinado = false, Activo = true, Orden = 1 };
+        var interbank = new Banco { Nombre = "Interbank", Slug = "interbank", SitioUrl = "https://interbank.pe", UrlAfiliado = null, EsPatrocinado = false, Activo = true, Orden = 2 };
+        var bbva = new Banco { Nombre = "BBVA", Slug = "bbva", SitioUrl = "https://www.bbva.pe", UrlAfiliado = null, EsPatrocinado = false, Activo = true, Orden = 3 };
+        var scotiabank = new Banco { Nombre = "Scotiabank", Slug = "scotiabank", SitioUrl = "https://www.scotiabank.com.pe", UrlAfiliado = null, EsPatrocinado = false, Activo = true, Orden = 4 };
+        var pichincha = new Banco { Nombre = "Banco Pichincha", Slug = "pichincha", SitioUrl = "https://www.pichincha.pe", UrlAfiliado = null, EsPatrocinado = false, Activo = true, Orden = 5 };
+
+        var bancos = new List<Banco> { bcp, interbank, bbva, scotiabank, pichincha };
+
+        // Productos por tipo (se generarán IDs al insertar en DB)
+        // Por eso retornamos listas separadas para que el seed las procese con contexto de DB
+        return (bancos, [], []);
+    }
 }

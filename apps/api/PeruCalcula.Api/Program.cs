@@ -4,7 +4,12 @@ using System.Threading.RateLimiting;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using PeruCalcula.Api.BackgroundServices;
+using PeruCalcula.Api.Telemetry;
 using PeruCalcula.Api.Endpoints;
 using PeruCalcula.Api.Middleware;
 using PeruCalcula.Infrastructure;
@@ -95,6 +100,47 @@ try
         opt.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     });
 
+    // ── OpenTelemetry (ADR-18) ────────────────────────────────────────────────
+    var otelEndpoint = builder.Configuration["OpenTelemetry:Endpoint"] ?? "http://otel-collector:4317";
+    var otelEnabled  = builder.Configuration.GetValue<bool>("OpenTelemetry:Enabled", true);
+
+    if (otelEnabled)
+    {
+        var resource = ResourceBuilder.CreateDefault()
+            .AddService("peru-calcula-api", serviceVersion: "4.0.0");
+
+        builder.Services.AddOpenTelemetry()
+            .WithTracing(tracing => tracing
+                .SetResourceBuilder(resource)
+                .AddAspNetCoreInstrumentation(opt =>
+                {
+                    opt.RecordException       = true;
+                    opt.EnrichWithHttpRequest = (activity, req) =>
+                        activity.SetTag("http.correlation_id", req.Headers["X-Correlation-ID"].FirstOrDefault());
+                })
+                .AddHttpClientInstrumentation()
+                .AddEntityFrameworkCoreInstrumentation(opt => opt.SetDbStatementForText = false)
+                .AddOtlpExporter(opt =>
+                {
+                    opt.Endpoint = new Uri(otelEndpoint);
+                    opt.Protocol = OtlpExportProtocol.Grpc;
+                }))
+            .WithMetrics(metrics => metrics
+                .SetResourceBuilder(resource)
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddRuntimeInstrumentation()
+                .AddMeter(PeruCalculaMetrics.MeterName)
+                .AddPrometheusExporter()
+                .AddOtlpExporter(opt =>
+                {
+                    opt.Endpoint = new Uri(otelEndpoint);
+                    opt.Protocol = OtlpExportProtocol.Grpc;
+                }));
+
+        builder.Services.AddSingleton<PeruCalculaMetrics>();
+    }
+
     // ── OpenAPI ───────────────────────────────────────────────────────────────
     builder.Services.AddOpenApi();
 
@@ -135,9 +181,10 @@ try
         opt.EnrichDiagnosticContext = (diag, ctx) =>
             diag.Set("CorrelationId", ctx.Items["X-Correlation-Id"]));
 
-    // ── Health endpoints ──────────────────────────────────────────────────────
+    // ── Health + métricas Prometheus ─────────────────────────────────────────
     app.MapHealthChecks("/health/live",  new() { Predicate = _ => false });
     app.MapHealthChecks("/health/ready", new() { Predicate = hc => hc.Tags.Contains("ready") });
+    if (otelEnabled) app.MapPrometheusScrapingEndpoint("/metrics");
 
     // ── API Endpoints ────────────────────────────────────────────────────────
     app.MapLaboral();

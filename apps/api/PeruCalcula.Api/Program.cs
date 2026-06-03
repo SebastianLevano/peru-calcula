@@ -141,9 +141,12 @@ try
 
     // ── API Endpoints ────────────────────────────────────────────────────────
     app.MapLaboral();
+    app.MapLaboralF2();
     app.MapTributario();
+    app.MapTributarioF2();
     app.MapFinanzas();
     app.MapAnalytics();
+    app.MapGuias();
     app.MapAdmin();
     app.MapSeo();
 

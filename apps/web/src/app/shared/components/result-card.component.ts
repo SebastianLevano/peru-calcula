@@ -1,6 +1,8 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, inject } from '@angular/core';
 import { CommonModule, CurrencyPipe } from '@angular/common';
 import { TrustBadgeComponent } from './trust-badge.component';
+import { PdfService } from '../../core/pdf.service';
+import { FeatureFlagsService } from '../../core/feature-flags.service';
 
 export interface DesgloseLine {
   concepto: string;
@@ -56,19 +58,35 @@ export interface ResultadoConfianza {
           aria-label="Compartir resultado por URL">
           Compartir
         </button>
+        @if (flags.isEnabled('pdfExport')) {
+          <button
+            (click)="onDescargarPdf()"
+            class="flex-1 py-2 text-sm bg-gray-50 border border-gray-300 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Descargar resultado en PDF">
+            Descargar PDF
+          </button>
+        }
       </div>
     </div>
   `,
 })
 export class ResultCardComponent {
-  @Input() titulo     = 'Resultado';
-  @Input() montoFinal = 0;
-  @Input() desglose?: DesgloseLine[];
-  @Input() confianza?: ResultadoConfianza;
+  @Input() titulo            = 'Resultado';
+  @Input() montoFinal        = 0;
+  @Input() desglose?:        DesgloseLine[];
+  @Input() confianza?:       ResultadoConfianza;
+  @Input() calculadoraSlug   = '';
+  @Input() modulo: 'laboral' | 'tributario' | 'finanzas' = 'finanzas';
+
+  private readonly pdf  = inject(PdfService);
+  readonly flags        = inject(FeatureFlagsService);
 
   onCompartir() {
-    if (navigator.clipboard) {
+    if (navigator.clipboard)
       navigator.clipboard.writeText(window.location.href);
-    }
+  }
+
+  onDescargarPdf() {
+    this.pdf.descargar('result-card-content', `resultado-${this.calculadoraSlug}`, this.calculadoraSlug, this.modulo);
   }
 }

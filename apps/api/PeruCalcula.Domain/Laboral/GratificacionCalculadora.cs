@@ -3,29 +3,31 @@ using PeruCalcula.Shared;
 namespace PeruCalcula.Domain.Laboral;
 
 /// <summary>
-/// Calcula gratificación ordinaria de julio y diciembre (Ley 27735).
-/// Monto = (RC / 6) * meses_computable
-/// Bonificación extraordinaria = 9% de la gratificación si el trabajador aporta a EsSalud,
-///                               6.75% si aporta a EPS.
-/// La bonificación extraordinaria equivale al aporte de EsSalud que el empleador se ahorra
-/// al no estar afecta la gratificación a aportes sociales (Ley 29351).
+/// Calcula gratificación ordinaria (Ley 27735) y bonificación extraordinaria (Ley 29351).
+///
+/// Remuneración computable (Ley 27735, Art. 3):
+///   RC = básico + asig.familiar + promedio de comisiones del semestre + otros bonos regulares
+///   Nota: las horas extras NO integran la RC de gratificación (solo CTS), salvo que sean
+///   percibidas regularmente por al menos 3 meses en el semestre.
+///
+/// Gratificación  = (RC / 6) × meses_completos + (RC / 180) × días_adicionales
+/// Bonif.Ext.     = Gratificación × %EsSalud (o EPS), equivalente al aporte que el
+///                  empleador se ahorra (Ley 29351).
 /// </summary>
 public static class GratificacionCalculadora
 {
     public static GratificacionResultado Calcular(GratificacionInput input, ParametrosGratificacion parametros)
     {
-        if (input.RemuneracionBasica.Monto <= 0)
-            throw new ArgumentException("La remuneración básica debe ser mayor a cero.");
-        if (input.MesesCompletados < 0 || input.MesesCompletados > 6)
-            throw new ArgumentException("Los meses deben estar entre 0 y 6.");
-        if (input.DiasAdicionales < 0 || input.DiasAdicionales > 29)
-            throw new ArgumentException("Los días adicionales deben estar entre 0 y 29.");
+        Validar(input);
 
         var asignacionFamiliar = input.TieneHijos
             ? (parametros.Rmv * (parametros.AsignacionFamiliarPct / 100m)).Redondear(RedondeoConcepto.Gratificacion)
             : new Money(0);
 
-        var rc = input.RemuneracionBasica + asignacionFamiliar;
+        var promedioComisiones = input.PromedioComisiones.Redondear(RedondeoConcepto.Gratificacion);
+        var otrosBonos         = input.OtrosBonos.Redondear(RedondeoConcepto.Gratificacion);
+
+        var rc = input.RemuneracionBasica + asignacionFamiliar + promedioComisiones + otrosBonos;
 
         var gratificacionMeses = (rc / 6m * input.MesesCompletados).Redondear(RedondeoConcepto.Gratificacion);
         var gratificacionDias  = (rc / 180m * input.DiasAdicionales).Redondear(RedondeoConcepto.Gratificacion);
@@ -40,27 +42,45 @@ public static class GratificacionCalculadora
             TotalDeposito:              (gratificacion + bonificacionExtraordinaria).Redondear(RedondeoConcepto.Gratificacion),
             RemuneracionComputable:     rc,
             AsignacionFamiliar:         asignacionFamiliar,
+            PromedioComisiones:         promedioComisiones,
+            OtrosBonos:                 otrosBonos,
             MesesCompletados:           input.MesesCompletados,
             DiasAdicionales:            input.DiasAdicionales,
             PctBonificacion:            pctBonif
         );
     }
+
+    private static void Validar(GratificacionInput input)
+    {
+        if (input.RemuneracionBasica.Monto <= 0)
+            throw new ArgumentException("La remuneración básica debe ser mayor a cero.");
+        if (input.MesesCompletados < 0 || input.MesesCompletados > 6)
+            throw new ArgumentException("Los meses deben estar entre 0 y 6.");
+        if (input.DiasAdicionales < 0 || input.DiasAdicionales > 29)
+            throw new ArgumentException("Los días adicionales deben estar entre 0 y 29.");
+        if (input.PromedioComisiones.Monto < 0)
+            throw new ArgumentException("El promedio de comisiones no puede ser negativo.");
+        if (input.OtrosBonos.Monto < 0)
+            throw new ArgumentException("Los otros bonos no pueden ser negativos.");
+    }
 }
 
 public sealed record GratificacionInput(
-    Money RemuneracionBasica,
-    bool  TieneHijos,
-    int   MesesCompletados,
-    int   DiasAdicionales,
-    bool  AportaAEps = false
+    Money   RemuneracionBasica,
+    bool    TieneHijos,
+    int     MesesCompletados,
+    int     DiasAdicionales,
+    bool    AportaAEps         = false,
+    Money   PromedioComisiones = default,   // promedio mensual de comisiones del semestre
+    Money   OtrosBonos         = default    // promedio mensual de otros bonos regulares
 );
 
 public sealed record ParametrosGratificacion(
-    Money   Rmv,
-    decimal AsignacionFamiliarPct,
-    decimal EssaludBonifPct,
-    decimal EpsBonifPct,
-    string  Version,
+    Money    Rmv,
+    decimal  AsignacionFamiliarPct,
+    decimal  EssaludBonifPct,
+    decimal  EpsBonifPct,
+    string   Version,
     DateOnly FechaActualizacion
 );
 
@@ -70,6 +90,8 @@ public sealed record GratificacionResultado(
     Money   TotalDeposito,
     Money   RemuneracionComputable,
     Money   AsignacionFamiliar,
+    Money   PromedioComisiones,
+    Money   OtrosBonos,
     int     MesesCompletados,
     int     DiasAdicionales,
     decimal PctBonificacion

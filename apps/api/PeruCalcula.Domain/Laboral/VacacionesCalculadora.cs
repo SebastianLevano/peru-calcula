@@ -3,65 +3,86 @@ using PeruCalcula.Shared;
 namespace PeruCalcula.Domain.Laboral;
 
 /// <summary>
-/// Calcula vacaciones según el D.Leg. 713.
-/// Vacaciones ordinarias:   30 días = remuneración mensual computable.
-/// Vacaciones truncas:      RC / 12 * meses_trabajados (cuando < 1 año y se liquida).
-/// Vacaciones pendientes:   días no gozados * (RC / 30).
+/// Calcula vacaciones según el D.Leg. 713 / D.S. 012-92-TR.
+///
+/// Remuneración computable (Art. 12 D.S. 012-92-TR):
+///   RC = básico + asig. familiar + promedio mensual remuneraciones variables (últimos 12 meses)
+///   No incluye 1/6 de gratificación (diferencia clave con CTS).
+///
+/// Vacaciones ordinarias:  30 días = RC mensual (1 año completo trabajado).
+/// Vacaciones truncas:     RC/12 × meses + RC/360 × días (al cesar antes del año).
+/// Vacaciones pendientes:  RC/30 × días no gozados de períodos anteriores.
 /// </summary>
 public static class VacacionesCalculadora
 {
     public static VacacionesResultado Calcular(VacacionesInput input, ParametrosVacaciones parametros)
     {
-        if (input.RemuneracionMensual.Monto <= 0)
-            throw new ArgumentException("La remuneración debe ser mayor a cero.");
+        if (input.RemuneracionBasica.Monto <= 0)
+            throw new ArgumentException("La remuneración básica debe ser mayor a cero.");
 
-        var asignacionFamiliar = input.TieneHijos
+        var asignacionFamiliar   = input.TieneHijos
             ? (parametros.Rmv * (parametros.AsignacionFamiliarPct / 100m)).Redondear(RedondeoConcepto.Vacaciones)
             : new Money(0);
 
-        var rc = input.RemuneracionMensual + asignacionFamiliar;
+        var promedioHorasExtras  = input.PromedioHorasExtras.Redondear(RedondeoConcepto.Vacaciones);
+        var promedioComisiones   = input.PromedioComisiones.Redondear(RedondeoConcepto.Vacaciones);
+        var otrosBonos           = input.OtrosBonos.Redondear(RedondeoConcepto.Vacaciones);
 
-        Money vacOrdinarias    = new(0);
-        Money vacTruncas       = new(0);
-        Money vacPendientes    = new(0);
+        var rc = input.RemuneracionBasica
+               + asignacionFamiliar
+               + promedioHorasExtras
+               + promedioComisiones
+               + otrosBonos;
 
-        // Vacaciones ordinarias: 1 año completo trabajado → 30 días = RC mensual
+        Money vacOrdinarias  = new(0);
+        Money vacTruncas     = new(0);
+        Money vacPendientes  = new(0);
+
         if (input.AniosCompletados >= 1)
             vacOrdinarias = rc.Redondear(RedondeoConcepto.Vacaciones);
 
-        // Vacaciones truncas: < 1 año → RC/12 * meses (al liquidar)
-        if (input.MesesTruncos > 0)
-            vacTruncas = (rc / 12m * input.MesesTruncos).Redondear(RedondeoConcepto.Vacaciones);
+        if (input.MesesTruncos > 0 || input.DiasAdicionalesTruncos > 0)
+        {
+            var porMeses = (rc / 12m * input.MesesTruncos).Redondear(RedondeoConcepto.Vacaciones);
+            var porDias  = (rc / 360m * input.DiasAdicionalesTruncos).Redondear(RedondeoConcepto.Vacaciones);
+            vacTruncas   = (porMeses + porDias).Redondear(RedondeoConcepto.Vacaciones);
+        }
 
-        // Vacaciones pendientes (días no gozados * RC/30)
         if (input.DiasPendientes > 0)
             vacPendientes = (rc / 30m * input.DiasPendientes).Redondear(RedondeoConcepto.Vacaciones);
 
         var total = (vacOrdinarias + vacTruncas + vacPendientes).Redondear(RedondeoConcepto.Vacaciones);
 
         return new VacacionesResultado(
-            VacacionesOrdinarias: vacOrdinarias,
-            VacacionesTruncas:    vacTruncas,
-            VacacionesPendientes: vacPendientes,
-            Total:                total,
+            VacacionesOrdinarias:   vacOrdinarias,
+            VacacionesTruncas:      vacTruncas,
+            VacacionesPendientes:   vacPendientes,
+            Total:                  total,
             RemuneracionComputable: rc,
-            AsignacionFamiliar:   asignacionFamiliar
+            AsignacionFamiliar:     asignacionFamiliar,
+            PromedioHorasExtras:    promedioHorasExtras,
+            PromedioComisiones:     promedioComisiones,
+            OtrosBonos:             otrosBonos
         );
     }
 }
 
 public sealed record VacacionesInput(
-    Money RemuneracionMensual,
+    Money RemuneracionBasica,
     bool  TieneHijos,
     int   AniosCompletados,
-    int   MesesTruncos   = 0,
-    int   DiasPendientes = 0
+    int   MesesTruncos           = 0,
+    int   DiasPendientes         = 0,
+    int   DiasAdicionalesTruncos = 0,    // días del mes parcial al cese (D.S. 012-92-TR Art. 23)
+    Money PromedioHorasExtras    = default,
+    Money PromedioComisiones     = default,
+    Money OtrosBonos             = default
 );
 
 public sealed record ParametrosVacaciones(
-    Money   Rmv,
-    decimal AsignacionFamiliarPct,
-    string  Version,
+    Money    Rmv,
+    decimal  AsignacionFamiliarPct,
+    string   Version,
     DateOnly FechaActualizacion
 );
 
@@ -71,5 +92,8 @@ public sealed record VacacionesResultado(
     Money VacacionesPendientes,
     Money Total,
     Money RemuneracionComputable,
-    Money AsignacionFamiliar
+    Money AsignacionFamiliar,
+    Money PromedioHorasExtras,
+    Money PromedioComisiones,
+    Money OtrosBonos
 );

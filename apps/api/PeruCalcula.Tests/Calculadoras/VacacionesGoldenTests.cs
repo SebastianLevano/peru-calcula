@@ -20,7 +20,7 @@ public class VacacionesGoldenTests
     [Trait("Category", "Golden")]
     public void Ordinarias_1Anio_SinHijos()
     {
-        // RC = 2500 = 1 mes → ordinarias = 2500
+        // RC = 2500 → ordinarias = 2500
         var r = VacacionesCalculadora.Calcular(
             new VacacionesInput(new Money(2500m), false, 1), Params);
 
@@ -55,5 +55,57 @@ public class VacacionesGoldenTests
         Assert.Equal(0m,    r.VacacionesOrdinarias.Monto);
         Assert.Equal(1500m, r.VacacionesPendientes.Monto);
         Assert.Equal(1500m, r.Total.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void Variables_HorasExtras_Comisiones()
+    {
+        // RC = 2000 + 0 (sin hijos) + 300 (HH.EE.) + 200 (comisiones) = 2500
+        // Ordinarias (1 año) = 2500
+        var r = VacacionesCalculadora.Calcular(
+            new VacacionesInput(
+                RemuneracionBasica:   new Money(2000m),
+                TieneHijos:           false,
+                AniosCompletados:     1,
+                PromedioHorasExtras:  new Money(300m),
+                PromedioComisiones:   new Money(200m)), Params);
+
+        Assert.Equal(2500m, r.RemuneracionComputable.Monto);
+        Assert.Equal(2500m, r.VacacionesOrdinarias.Monto);
+        Assert.Equal(300m,  r.PromedioHorasExtras.Monto);
+        Assert.Equal(200m,  r.PromedioComisiones.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void TruncasDias_MesesYDias()
+    {
+        // RC = 1800; truncas = 1800/12*3 + 1800/360*15 = 450 + 75 = 525
+        var r = VacacionesCalculadora.Calcular(
+            new VacacionesInput(
+                RemuneracionBasica:      new Money(1800m),
+                TieneHijos:              false,
+                AniosCompletados:        0,
+                MesesTruncos:            3,
+                DiasAdicionalesTruncos:  15), Params);
+
+        Assert.Equal(0m,    r.VacacionesOrdinarias.Monto);
+        Assert.Equal(525m,  r.VacacionesTruncas.Monto);
+        Assert.Equal(525m,  r.Total.Monto);
+    }
+
+    [Fact]
+    [Trait("Category", "Golden")]
+    public void PeriodoVacaciones_FechaIngreso()
+    {
+        // Ingreso 2022-03-15, hoy 2026-06-03 → 4 años, 2 meses, 19 días
+        var p = PeriodoLaboralCalculador.CalcularVacaciones(
+            new DateOnly(2022, 3, 15),
+            new DateOnly(2026, 6, 3));
+
+        Assert.Equal(4,  p.AniosCompletados);
+        Assert.Equal(2,  p.MesesTruncos);
+        Assert.Equal(19, p.DiasAdicionales);
     }
 }

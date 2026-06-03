@@ -13,13 +13,19 @@ namespace PeruCalcula.Domain.Laboral;
 ///
 /// Si el trabajador ingresó después del inicio del período, el cómputo
 /// comienza desde su fecha de ingreso.
+///
+/// Vacaciones (D.Leg. 713):
+///   - Período = aniversario laboral (fecha de ingreso + N años).
+///   - AniosCompletados = años completos desde la fecha de ingreso.
+///   - MesesTruncos     = meses completos en el año en curso (para vacaciones truncas al cese).
+///   - DiasAdicionales  = días sueltos tras el último mes completo (D.S. 012-92-TR Art. 23).
 /// </summary>
 public static class PeriodoLaboralCalculador
 {
     public static PeriodoResultado CalcularCts(DateOnly fechaIngreso, DateOnly hoy)
     {
         // Determinar período activo según mes actual
-        DateOnly inicioNormativo, finNormativo, nombrePeriodo;
+        DateOnly inicioNormativo, finNormativo;
         string nombre;
 
         if (hoy.Month is >= 11 or <= 4)
@@ -62,6 +68,40 @@ public static class PeriodoLaboralCalculador
         }
 
         return Calcular(fechaIngreso, inicioNormativo, finNormativo, hoy, nombre);
+    }
+
+    /// <summary>
+    /// Calcula el período vacacional basado en la fecha de ingreso.
+    /// Devuelve años completos (derecho a ordinarias), meses y días del año en curso
+    /// (base para vacaciones truncas al cese, D.S. 012-92-TR Art. 23).
+    /// </summary>
+    public static VacacionesPeriodoResultado CalcularVacaciones(DateOnly fechaIngreso, DateOnly hoy)
+    {
+        if (fechaIngreso >= hoy)
+            return new VacacionesPeriodoResultado(0, 0, 0, fechaIngreso, "Sin tiempo computable");
+
+        // Años completos desde la fecha de ingreso
+        int anios = 0;
+        while (fechaIngreso.AddYears(anios + 1) <= hoy)
+            anios++;
+
+        var ultimoAniversario = fechaIngreso.AddYears(anios);
+
+        // Meses completos en el año en curso
+        int meses = 0;
+        while (ultimoAniversario.AddMonths(meses + 1) <= hoy)
+            meses++;
+
+        // Días sueltos tras el último mes completo
+        var cursorMeses = ultimoAniversario.AddMonths(meses);
+        int dias = Math.Max(0,
+            (hoy.ToDateTime(TimeOnly.MinValue) - cursorMeses.ToDateTime(TimeOnly.MinValue)).Days);
+
+        var nombre = anios > 0
+            ? $"{anios} año{(anios != 1 ? "s" : "")} y {meses} mes{(meses != 1 ? "es" : "")} trabajados"
+            : $"{meses} mes{(meses != 1 ? "es" : "")} y {dias} día{(dias != 1 ? "s" : "")} trabajados";
+
+        return new VacacionesPeriodoResultado(anios, meses, dias, ultimoAniversario, nombre);
     }
 
     // ── Cálculo interno ───────────────────────────────────────────────────────
@@ -111,5 +151,13 @@ public sealed record PeriodoResultado(
     DateOnly FinEfectivo,
     DateOnly InicioNormativo,
     DateOnly FinNormativo,
+    string   Nombre
+);
+
+public sealed record VacacionesPeriodoResultado(
+    int      AniosCompletados,
+    int      MesesTruncos,
+    int      DiasAdicionales,
+    DateOnly UltimoAniversario,
     string   Nombre
 );

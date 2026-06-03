@@ -112,6 +112,7 @@ public static class LaboralF2Endpoints
         VacacionesRequest req,
         IParametroService parametros,
         IValidator<VacacionesRequest> validator,
+        IClock clock,
         CancellationToken ct)
     {
         var val = await validator.ValidateAsync(req, ct);
@@ -120,31 +121,83 @@ public static class LaboralF2Endpoints
         var rmv     = await parametros.ObtenerMoneyAsync(ParametroClaves.RMV, ct: ct);
         var asigPct = await parametros.ObtenerDecimalAsync(ParametroClaves.AsignacionFamiliar, ct: ct);
 
+        var hoy = DateOnly.FromDateTime(clock.UtcNow.DateTime);
         var parms = new ParametrosVacaciones(rmv, asigPct,
-            DateOnly.FromDateTime(DateTime.Today).ToString("yyyy-MM"), new DateOnly(1992, 12, 8));
+            hoy.ToString("yyyy-MM"), new DateOnly(1992, 12, 8));
 
-        var resultado = VacacionesCalculadora.Calcular(
-            new VacacionesInput(new Money(req.RemuneracionMensual), req.TieneHijos,
-                                req.AniosCompletados, req.MesesTruncos, req.DiasPendientes), parms);
+        int anios, mesesTruncos, diasAdicionales;
+        VacacionesPeriodoResultado? periodo = null;
+
+        if (req.FechaIngreso.HasValue)
+        {
+            periodo         = PeriodoLaboralCalculador.CalcularVacaciones(req.FechaIngreso.Value, hoy);
+            anios           = periodo.AniosCompletados;
+            mesesTruncos    = periodo.MesesTruncos;
+            diasAdicionales = periodo.DiasAdicionales;
+        }
+        else
+        {
+            anios           = req.AniosCompletados ?? 0;
+            mesesTruncos    = req.MesesTruncos     ?? 0;
+            diasAdicionales = req.DiasAdicionales  ?? 0;
+        }
+
+        var input = new VacacionesInput(
+            RemuneracionBasica:      new Money(req.RemuneracionBasica),
+            TieneHijos:              req.TieneHijos,
+            AniosCompletados:        anios,
+            MesesTruncos:            mesesTruncos,
+            DiasPendientes:          req.DiasPendientes,
+            DiasAdicionalesTruncos:  diasAdicionales,
+            PromedioHorasExtras:     new Money(req.PromedioHorasExtras),
+            PromedioComisiones:      new Money(req.PromedioComisiones),
+            OtrosBonos:              new Money(req.OtrosBonos)
+        );
+
+        var resultado = VacacionesCalculadora.Calcular(input, parms);
+
+        var desglose = new List<object>
+        {
+            new { concepto = "Remuneración básica",   valor = req.RemuneracionBasica },
+            new { concepto = "Asignación familiar",   valor = resultado.AsignacionFamiliar.Monto },
+        };
+
+        if (resultado.PromedioHorasExtras.Monto > 0)
+            desglose.Add(new { concepto = "Promedio horas extras/mes", valor = resultado.PromedioHorasExtras.Monto });
+        if (resultado.PromedioComisiones.Monto > 0)
+            desglose.Add(new { concepto = "Promedio comisiones/mes",   valor = resultado.PromedioComisiones.Monto });
+        if (resultado.OtrosBonos.Monto > 0)
+            desglose.Add(new { concepto = "Otros bonos regulares/mes", valor = resultado.OtrosBonos.Monto });
+
+        desglose.Add(new { concepto = "Remuneración computable (RC)", valor = resultado.RemuneracionComputable.Monto });
+
+        if (resultado.VacacionesOrdinarias.Monto > 0)
+            desglose.Add(new { concepto = $"Vacaciones ordinarias ({anios} año{(anios != 1 ? "s" : "")})", valor = resultado.VacacionesOrdinarias.Monto });
+        if (resultado.VacacionesTruncas.Monto > 0)
+            desglose.Add(new { concepto = $"Vacaciones truncas ({mesesTruncos} mes{(mesesTruncos != 1 ? "es" : "")})", valor = resultado.VacacionesTruncas.Monto });
+        if (resultado.VacacionesPendientes.Monto > 0)
+            desglose.Add(new { concepto = $"Vacaciones pendientes ({req.DiasPendientes} días no gozados)", valor = resultado.VacacionesPendientes.Monto });
 
         return Results.Ok(new
         {
             resultado = new
             {
-                total                 = resultado.Total.Monto,
-                vacacionesOrdinarias  = resultado.VacacionesOrdinarias.Monto,
-                vacacionesTruncas     = resultado.VacacionesTruncas.Monto,
-                vacacionesPendientes  = resultado.VacacionesPendientes.Monto,
-                moneda                = "PEN",
+                total                = resultado.Total.Monto,
+                vacacionesOrdinarias = resultado.VacacionesOrdinarias.Monto,
+                vacacionesTruncas    = resultado.VacacionesTruncas.Monto,
+                vacacionesPendientes = resultado.VacacionesPendientes.Monto,
+                moneda               = "PEN",
             },
-            desglose = new[]
+            periodo = periodo is null ? null : new
             {
-                new { concepto = "Remuneración computable",   valor = resultado.RemuneracionComputable.Monto },
-                new { concepto = "Vacaciones ordinarias",     valor = resultado.VacacionesOrdinarias.Monto },
-                new { concepto = "Vacaciones truncas",        valor = resultado.VacacionesTruncas.Monto },
-                new { concepto = "Vacaciones pendientes",     valor = resultado.VacacionesPendientes.Monto },
+                nombre           = periodo.Nombre,
+                ultimoAniversario = periodo.UltimoAniversario.ToString("yyyy-MM-dd"),
+                aniosCompletados = periodo.AniosCompletados,
+                mesesTruncos     = periodo.MesesTruncos,
+                diasAdicionales  = periodo.DiasAdicionales,
             },
-            formula = "Ordinarias = RC mensual | Truncas = RC/12×meses | Pendientes = RC/30×días",
+            desglose,
+            formula   = "Ordinarias = RC mensual | Truncas = RC/12×meses + RC/360×días | Pendientes = RC/30×días  (D.Leg. 713 / D.S. 012-92-TR)",
             confianza = new
             {
                 parametrosVersion           = parms.Version,
@@ -166,7 +219,18 @@ public sealed record GratificacionRequest(
     decimal   PromedioComisiones = 0,
     decimal   OtrosBonos         = 0
 );
-public sealed record VacacionesRequest(decimal RemuneracionMensual, bool TieneHijos, int AniosCompletados, int MesesTruncos = 0, int DiasPendientes = 0);
+public sealed record VacacionesRequest(
+    decimal   RemuneracionBasica,
+    bool      TieneHijos,
+    DateOnly? FechaIngreso         = null,
+    int?      AniosCompletados     = null,
+    int?      MesesTruncos         = null,
+    int?      DiasAdicionales      = null,
+    int       DiasPendientes       = 0,
+    decimal   PromedioHorasExtras  = 0,
+    decimal   PromedioComisiones   = 0,
+    decimal   OtrosBonos           = 0
+);
 
 public sealed class GratificacionRequestValidator : AbstractValidator<GratificacionRequest>
 {
@@ -187,9 +251,16 @@ public sealed class VacacionesRequestValidator : AbstractValidator<VacacionesReq
 {
     public VacacionesRequestValidator()
     {
-        RuleFor(x => x.RemuneracionMensual).GreaterThan(0);
-        RuleFor(x => x.AniosCompletados).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.MesesTruncos).InclusiveBetween(0, 11);
+        RuleFor(x => x.RemuneracionBasica).GreaterThan(0);
+        RuleFor(x => x.AniosCompletados).GreaterThanOrEqualTo(0).When(x => x.AniosCompletados.HasValue);
+        RuleFor(x => x.MesesTruncos).InclusiveBetween(0, 11).When(x => x.MesesTruncos.HasValue);
+        RuleFor(x => x.DiasAdicionales).InclusiveBetween(0, 30).When(x => x.DiasAdicionales.HasValue);
         RuleFor(x => x.DiasPendientes).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.PromedioHorasExtras).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.PromedioComisiones).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.OtrosBonos).GreaterThanOrEqualTo(0);
+        RuleFor(x => x)
+            .Must(x => x.FechaIngreso.HasValue || x.AniosCompletados.HasValue)
+            .WithMessage("Indica 'fechaIngreso' o 'aniosCompletados'.");
     }
 }

@@ -3,6 +3,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { environment } from '../../../environments/environment';
 
 const ACCESS_KEY  = 'admin_access';
 const REFRESH_KEY = 'admin_refresh';
@@ -18,7 +19,7 @@ export class AdminAuthService {
   private readonly http     = inject(HttpClient);
   private readonly router   = inject(Router);
   private readonly platform = inject(PLATFORM_ID);
-  private readonly apiBase  = '/api/v1/admin/auth';
+  private readonly apiBase  = `${environment.apiUrl}/api/v1/admin/auth`;
 
   readonly autenticado = signal(false);
   readonly email       = signal('');

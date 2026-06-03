@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, from, switchMap, throwError, catchError } from 'rxjs';
 import { AdminAuthService } from './admin-auth.service';
+import { environment } from '../../../environments/environment';
 
 /**
  * Cliente HTTP para endpoints admin. Inyecta Bearer + refresca token automáticamente.
@@ -12,7 +13,7 @@ export class AdminApiService {
   private readonly http   = inject(HttpClient);
   private readonly auth   = inject(AdminAuthService);
   private readonly router = inject(Router);
-  private readonly base   = '/api/v1/admin';
+  private readonly base   = `${environment.apiUrl}/api/v1/admin`;
 
   get<T>(path: string): Observable<T> {
     return this.withAuth(token =>

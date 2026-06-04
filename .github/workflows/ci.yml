@@ -113,7 +113,7 @@ jobs:
         run: npm ci
 
       - name: Download build artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: angular-dist
           path: apps/web/dist/web/browser

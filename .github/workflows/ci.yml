@@ -37,7 +37,7 @@ jobs:
         run: dotnet test PeruCalcula.sln --no-build -c Release --filter "Category!=Integration" --logger "trx;LogFileName=results.xml"
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: backend-test-results
@@ -84,7 +84,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: angular-dist
           path: apps/web/dist/web/browser
@@ -130,7 +130,7 @@ jobs:
           E2E_BASE_URL: http://localhost:4200
 
       - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report

@@ -12,6 +12,7 @@ TestResults/
 appsettings.*.json
 !appsettings.json
 !appsettings.Development.json
+!appsettings.Production.json
 
 # ---- EF Core migrations snapshot (keep migrations, ignore runtime) ----
 # (migraciones se versionan)

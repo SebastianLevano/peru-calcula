@@ -51,7 +51,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build & push Web image
+      - name: Build & push Web image (SSR)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -102,11 +102,12 @@ jobs:
         env:
           STAGING_URL: ${{ vars.STAGING_URL }}
         run: |
-          sleep 15
-          curl -f "$STAGING_URL/health/ready" || exit 1
-          curl -f "$STAGING_URL/" | grep -q "Perú Calcula" || exit 1
+          sleep 20
+          curl -fsSL "$STAGING_URL/api/health/live"  | grep -q "Healthy" || exit 1
+          curl -fsSL "$STAGING_URL/" | grep -q "Perú Calcula" || exit 1
+          echo "✓ Staging OK"
 
-  # ── Deploy a Producción (requiere aprobación manual) ──────────────────────────
+  # ── Deploy a Producción (requiere aprobación en GitHub Environments) ───────────
   deploy-production:
     name: Deploy → Production
     needs: [build-images, deploy-staging]
@@ -147,5 +148,7 @@ jobs:
         env:
           PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
         run: |
-          sleep 15
-          curl -f "$PRODUCTION_URL/health/ready" || exit 1
+          sleep 20
+          curl -fsSL "$PRODUCTION_URL/api/health/live" | grep -q "Healthy" || exit 1
+          curl -fsSL "$PRODUCTION_URL/" | grep -q "Perú Calcula" || exit 1
+          echo "✓ Producción OK"

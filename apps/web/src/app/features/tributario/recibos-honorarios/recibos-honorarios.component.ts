@@ -11,6 +11,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface RecibosRespuesta {
   resultado: { montoRecibo: number; aplicaRetencion: boolean; montoRetencion: number; montoNeto: number; moneda: string };
@@ -22,7 +23,7 @@ interface RecibosRespuesta {
 @Component({
   selector: 'app-recibos-honorarios',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, DecimalPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, DecimalPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Recibos por Honorarios"
@@ -70,6 +71,8 @@ interface RecibosRespuesta {
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-recibos-por-honorarios" />
   `,
 })
 export class RecibosHonorariosComponent implements OnInit {
@@ -78,7 +81,7 @@ export class RecibosHonorariosComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<RecibosRespuesta | null>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ montoRecibo: [null as number | null, [Validators.required, Validators.min(1)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora de Recibos por Honorarios', description: 'Calcula la retención de 4.ª categoría y verifica la suspensión ante SUNAT.', canonical: '/calculadora-recibos-por-honorarios' });
+    this.seo.set({ title: 'Calculadora Recibos por Honorarios 2026', description: 'Calcula la retención de 4ta categoría y verifica si aplica suspensión. Actualizado con UIT vigente.', canonical: '/calculadora-recibos-por-honorarios' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'recibos-honorarios', modulo: 'tributario' });
   }
   limpiar() {

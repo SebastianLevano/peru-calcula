@@ -11,6 +11,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface CuotaCronograma { mes: number; cuota: number; interes: number; amortizacion: number; saldo: number; }
 interface CreditoRespuesta { resultado: { cuota: number; tem: number; totalPagado: number; totalIntereses: number; moneda: string }; desglose: { concepto: string; valor: number }[]; cronograma: CuotaCronograma[]; confianza: ResultadoConfianza; }
@@ -18,7 +19,7 @@ interface CreditoRespuesta { resultado: { cuota: number; tem: number; totalPagad
 @Component({
   selector: 'app-credito-vehicular',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Simulador de Crédito Vehicular"
@@ -81,6 +82,8 @@ interface CreditoRespuesta { resultado: { cuota: number; tem: number; totalPagad
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-credito-vehicular" />
   `,
 })
 export class CreditoVehicularComponent implements OnInit {
@@ -89,7 +92,7 @@ export class CreditoVehicularComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<CreditoRespuesta | null>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ monto: [null as number | null, [Validators.required, Validators.min(500)]], plazoMeses: [60, [Validators.required, Validators.min(1), Validators.max(84)]], tea: [20, [Validators.required, Validators.min(0), Validators.max(1000)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Simulador de Crédito Vehicular', description: 'Simula tu crédito vehicular: cuota mensual y cronograma completo con el sistema francés.', canonical: '/calculadora-credito-vehicular' });
+    this.seo.set({ title: 'Simulador Crédito Vehicular Perú 2026', description: 'Calcula la cuota y cronograma de tu crédito vehicular con inicial, plazo y TEA. Resultado inmediato.', canonical: '/calculadora-credito-vehicular' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'credito-vehicular', modulo: 'finanzas' });
   }
   limpiar() {

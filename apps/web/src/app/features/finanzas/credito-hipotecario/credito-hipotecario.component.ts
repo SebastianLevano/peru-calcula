@@ -11,6 +11,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface CuotaCronograma { mes: number; cuota: number; interes: number; amortizacion: number; saldo: number; }
 interface CreditoRespuesta { resultado: { cuota: number; tem: number; totalPagado: number; totalIntereses: number; moneda: string }; desglose: { concepto: string; valor: number }[]; cronograma: CuotaCronograma[]; confianza: ResultadoConfianza; }
@@ -18,7 +19,7 @@ interface CreditoRespuesta { resultado: { cuota: number; tem: number; totalPagad
 @Component({
   selector: 'app-credito-hipotecario',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, DecimalPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, DecimalPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Simulador de Crédito Hipotecario"
@@ -95,6 +96,8 @@ interface CreditoRespuesta { resultado: { cuota: number; tem: number; totalPagad
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-hipotecaria" />
   `,
 })
 export class CreditoHipotecarioComponent implements OnInit {
@@ -103,7 +106,7 @@ export class CreditoHipotecarioComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<CreditoRespuesta | null>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ monto: [null as number | null, [Validators.required, Validators.min(5000)]], plazoMeses: [240, [Validators.required, Validators.min(12), Validators.max(360)]], tea: [9.5, [Validators.required, Validators.min(0), Validators.max(100)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Simulador de Crédito Hipotecario', description: 'Calcula la cuota de tu crédito hipotecario. Compatible con Mivivienda y Techo Propio.', canonical: '/calculadora-hipotecaria' });
+    this.seo.set({ title: 'Calculadora Crédito Hipotecario Perú 2026', description: 'Simula tu crédito hipotecario: cuota, interés total y cronograma completo. En soles o dólares.', canonical: '/calculadora-hipotecaria' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'credito-hipotecario', modulo: 'finanzas' });
   }
   limpiar() {

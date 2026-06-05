@@ -11,6 +11,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface CuotaCronograma { mes: number; cuota: number; interes: number; amortizacion: number; saldo: number; }
 interface CreditoRespuesta {
@@ -23,7 +24,7 @@ interface CreditoRespuesta {
 @Component({
   selector: 'app-credito-personal',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Simulador de Crédito Personal"
@@ -85,6 +86,8 @@ interface CreditoRespuesta {
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/simulador-credito-personal" />
   `,
 })
 export class CreditoPersonalComponent implements OnInit {
@@ -93,7 +96,7 @@ export class CreditoPersonalComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<CreditoRespuesta | null>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ monto: [null as number | null, [Validators.required, Validators.min(100)]], plazoMeses: [24, [Validators.required, Validators.min(1), Validators.max(360)]], tea: [25, [Validators.required, Validators.min(0), Validators.max(1000)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Simulador de Crédito Personal', description: 'Simula tu crédito personal: cuota mensual y cronograma con el sistema francés.', canonical: '/simulador-credito-personal' });
+    this.seo.set({ title: 'Simulador Crédito Personal Perú 2026', description: 'Simula tu crédito personal: cuota mensual, cronograma de amortización e interés total. Ingresa monto, plazo y TEA.', canonical: '/simulador-credito-personal' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'credito-personal', modulo: 'finanzas' });
   }
   limpiar() {

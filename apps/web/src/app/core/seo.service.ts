@@ -42,6 +42,7 @@ export class SeoService {
     this.meta.updateTag({ property: 'og:description', content: data.description });
     this.meta.updateTag({ property: 'og:site_name',   content: SITE });
     this.meta.updateTag({ property: 'og:type',        content: 'website' });
+    this.meta.updateTag({ property: 'og:locale',      content: 'es_PE' });
     this.meta.updateTag({ name: 'twitter:title',       content: fullTitle });
     this.meta.updateTag({ name: 'twitter:description', content: data.description });
 
@@ -81,9 +82,10 @@ export class SeoService {
     const breadcrumb = this.buildBreadcrumb(data.canonical, data.title);
     if (breadcrumb) result.push(breadcrumb);
 
-    // WebApplication para páginas de calculadora
+    // SoftwareApplication + HowTo para páginas de calculadora
     if (CALC_PREFIXES.some(p => data.canonical!.startsWith(p))) {
-      result.push(this.buildWebApplication(data.title, data.description, data.canonical!));
+      result.push(this.buildSoftwareApplication(data.title, data.description, data.canonical!));
+      result.push(this.buildHowTo(data.title, data.canonical!));
     }
 
     return result;
@@ -110,10 +112,10 @@ export class SeoService {
     };
   }
 
-  private buildWebApplication(title: string, description: string, path: string): object {
+  private buildSoftwareApplication(title: string, description: string, path: string): object {
     return {
       '@context': 'https://schema.org',
-      '@type': 'WebApplication',
+      '@type': 'SoftwareApplication',
       name: title,
       description,
       url: `${BASE_OG}${path}`,
@@ -127,6 +129,40 @@ export class SeoService {
         name: SITE,
         url: BASE_OG,
       },
+    };
+  }
+
+  /** HowTo genérico: 3 pasos comunes a todas las calculadoras del sitio. */
+  private buildHowTo(title: string, path: string): object {
+    return {
+      '@context': 'https://schema.org',
+      '@type': 'HowTo',
+      name: `Cómo usar la ${title}`,
+      description: `Pasos para obtener tu resultado con la ${title} de ${SITE}.`,
+      inLanguage: 'es-PE',
+      step: [
+        {
+          '@type': 'HowToStep',
+          position: 1,
+          name: 'Ingresa tus datos',
+          text: 'Completa el formulario con tus datos (montos, fechas y opciones que apliquen a tu caso).',
+          url: `${BASE_OG}${path}`,
+        },
+        {
+          '@type': 'HowToStep',
+          position: 2,
+          name: 'Calcula',
+          text: 'Pulsa el botón de calcular para obtener el resultado al instante.',
+          url: `${BASE_OG}${path}`,
+        },
+        {
+          '@type': 'HowToStep',
+          position: 3,
+          name: 'Revisa el desglose y la fuente',
+          text: 'Consulta el desglose detallado, la norma aplicada y la fecha de actualización en la ficha de auditoría.',
+          url: `${BASE_OG}${path}`,
+        },
+      ],
     };
   }
 

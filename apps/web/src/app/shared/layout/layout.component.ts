@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MODULOS, porModulo } from '../calculadoras';
+import { guiasDestacadas } from '../guias';
 import { LogoComponent } from './logo.component';
 
 /**
@@ -80,6 +81,13 @@ import { LogoComponent } from './logo.component';
             <p class="mt-3 max-w-xs text-sm text-ink-600">
               Calculadoras laborales, tributarias y financieras según la normativa peruana vigente. Gratis y sin registro.
             </p>
+            <h2 class="mt-6 font-sans text-xs font-semibold uppercase tracking-wide text-ink-500">Guías destacadas</h2>
+            <ul class="mt-3 space-y-2">
+              @for (g of guiasDestacadas; track g.slug) {
+                <li><a [routerLink]="['/guias', g.slug]" class="text-sm text-ink-600 hover:text-primary-700">{{ g.titulo }}</a></li>
+              }
+              <li><a routerLink="/guias" class="text-sm font-medium text-primary-700 hover:text-primary-800">Todas las guías →</a></li>
+            </ul>
           </div>
           @for (m of modulos; track m.id) {
             <div>
@@ -109,6 +117,7 @@ import { LogoComponent } from './logo.component';
 export class LayoutComponent {
   readonly modulos = MODULOS;
   readonly porModulo = porModulo;
+  readonly guiasDestacadas = guiasDestacadas();
   readonly anio = new Date().getFullYear();
   readonly abierto = signal(false);
 

@@ -1,7 +1,21 @@
 /* ── Fuentes self-hosted (variable, font-display: swap, sin Google) ──────────
-   wght.css usa unicode-range → el navegador solo descarga el subset latin.   */
-@import "@fontsource-variable/inter/wght.css";
-@import "@fontsource-variable/source-serif-4/wght.css";
+   @font-face explícito sobre /fonts/*.woff2 (subset latin variable) para que
+   el <link rel="preload"> de index.html apunte EXACTAMENTE al archivo usado
+   (sin "preloaded but not used"). Subset latin = cubre tildes y ñ del español. */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("/fonts/inter-latin.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Serif 4 Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 900;
+  src: url("/fonts/source-serif-4-latin.woff2") format("woff2");
+}
 
 @import "tailwindcss";
 @plugin "@tailwindcss/forms";

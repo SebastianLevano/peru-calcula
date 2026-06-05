@@ -17,6 +17,12 @@ import { SeoService } from '../../core/seo.service';
         <h1>Política de privacidad</h1>
         <p class="text-sm text-ink-500">Última actualización: junio de 2026</p>
 
+        <p class="rounded-card border border-line bg-paper p-4 text-sm text-ink-600">
+          <strong>Nota:</strong> este documento es un punto de partida y no constituye asesoría legal.
+          El titular del sitio debe revisarlo con un profesional antes de activar publicidad o
+          herramientas de analítica con identificadores.
+        </p>
+
         <h2>1. Responsable del tratamiento</h2>
         <p>Perú Calcula (<code>perucalcula.pe</code>) es el responsable del tratamiento de los datos en el ámbito de la Ley 29733 (Ley de Protección de Datos Personales del Perú) y su reglamento.</p>
 
@@ -32,13 +38,16 @@ import { SeoService } from '../../core/seo.service';
         <h2>3. Cookies y almacenamiento local</h2>
         <p>Usamos <code>localStorage</code> únicamente para recordar tu elección de consentimiento. No usamos cookies de seguimiento propias. Si aceptas, Google AdSense puede usar cookies de terceros según su política.</p>
 
-        <h2>4. Publicidad (Google AdSense)</h2>
+        <h2>4. Analítica de terceros (Google Analytics 4)</h2>
+        <p>Además de nuestra analítica in-house anónima, podemos usar <strong>Google Analytics 4 (GA4)</strong> con fines de medición y marketing. GA4 <strong>solo se activa si otorgas tu consentimiento</strong> en el banner; mientras no aceptes, no se carga ningún script de Google ni se instalan sus cookies. Puedes retirar tu consentimiento en cualquier momento borrando el almacenamiento local del sitio. El tratamiento que realiza Google se rige por su <a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank">política de privacidad</a>.</p>
+
+        <h2>5. Publicidad (Google AdSense)</h2>
         <p>Si aceptas el consentimiento, se muestra publicidad de Google AdSense. Google puede usar cookies para personalizar anuncios según tu actividad en otros sitios. Puedes optar por salir en <a href="https://adssettings.google.com" rel="noopener noreferrer" target="_blank">adssettings.google.com</a>.</p>
 
-        <h2>5. Tus derechos (Ley 29733)</h2>
+        <h2>6. Tus derechos (Ley 29733)</h2>
         <p>Tienes derecho a acceder, rectificar, cancelar y oponerte al tratamiento de tus datos. Dado que no almacenamos datos personales identificables, estos derechos aplican principalmente a la analítica agregada. Contáctanos en <strong>contacto&#64;perucalcula.pe</strong>.</p>
 
-        <h2>6. Cambios a esta política</h2>
+        <h2>7. Cambios a esta política</h2>
         <p>Notificaremos cambios relevantes publicando una nueva versión en esta página con la fecha de actualización.</p>
       </article>
     </main>

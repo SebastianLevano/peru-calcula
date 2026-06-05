@@ -12,6 +12,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface VacPeriodo { nombre: string; ultimoAniversario: string; fechaCese: string | null; aniosCompletados: number; mesesTruncos: number; diasAdicionales: number; }
 interface VacRespuesta {
@@ -29,7 +30,7 @@ function ultimos12Meses(): string[] {
 @Component({
   selector: 'app-vacaciones',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe, RouterModule, ResultCardComponent, CalcInputComponent, InputMesesComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, DatePipe, RouterModule, ResultCardComponent, CalcInputComponent, InputMesesComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Calculadora de Vacaciones"
@@ -121,6 +122,8 @@ function ultimos12Meses(): string[] {
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-vacaciones" />
   `,
 })
 export class VacacionesComponent implements OnInit, AfterViewInit {
@@ -142,7 +145,7 @@ export class VacacionesComponent implements OnInit, AfterViewInit {
     fechaCese: [null as string | null], diasPendientes: [0, [Validators.min(0)]], diasFaltasAnio: [0, [Validators.min(0)]],
   });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora de Vacaciones — D. Leg. 713', description: 'Calcula vacaciones ordinarias, truncas y pendientes. Según el D. Leg. 713.', canonical: '/calculadora-vacaciones' });
+    this.seo.set({ title: 'Calculadora Vacaciones Perú 2026', description: 'Calcula vacaciones completas, truncas o días pendientes según tu régimen laboral. Desglose y fuente oficial.', canonical: '/calculadora-vacaciones' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'vacaciones', modulo: 'laboral' });
   }
   ngAfterViewInit() {}

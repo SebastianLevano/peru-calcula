@@ -11,6 +11,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface ProductoComparado {
   productoId: number;
@@ -27,7 +28,7 @@ interface ComparadorRespuesta {
 @Component({
   selector: 'app-comparador',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, DecimalPipe, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, CurrencyPipe, DecimalPipe, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Comparador de Préstamos"
@@ -188,6 +189,8 @@ interface ComparadorRespuesta {
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/comparador-de-prestamos" />
   `,
 })
 export class ComparadorComponent implements OnInit {
@@ -220,8 +223,8 @@ export class ComparadorComponent implements OnInit {
 
   ngOnInit() {
     this.seo.set({
-      title: 'Comparador de Préstamos — Ranking por TCEA',
-      description: 'Compara créditos personales, vehiculares e hipotecarios del mercado peruano por TCEA.',
+      title: 'Comparador de Préstamos Perú 2026',
+      description: 'Compara créditos personales, vehiculares e hipotecarios por TCEA. Encuentra la mejor tasa entre los principales bancos del Perú.',
       canonical: '/comparador-de-prestamos',
     });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'comparador-prestamos', modulo: 'finanzas' });

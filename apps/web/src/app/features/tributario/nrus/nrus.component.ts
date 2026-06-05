@@ -10,11 +10,12 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 @Component({
   selector: 'app-nrus',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Calculadora NRUS"
@@ -52,6 +53,8 @@ import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.com
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-rus" />
   `,
 })
 export class NrusComponent implements OnInit {
@@ -60,7 +63,7 @@ export class NrusComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<any>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ ingresosMensuales: [null as number | null, [Validators.required, Validators.min(0)]], comprasMensuales: [0, [Validators.min(0)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora NRUS', description: 'Determina tu categoría y cuota mensual en el Nuevo RUS.', canonical: '/calculadora-rus' });
+    this.seo.set({ title: 'Calculadora RUS 2026', description: 'Determina tu categoría y cuota mensual del Nuevo RUS según tus ingresos. Normativa SUNAT actualizada.', canonical: '/calculadora-rus' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'nrus', modulo: 'tributario' });
   }
   limpiar() {

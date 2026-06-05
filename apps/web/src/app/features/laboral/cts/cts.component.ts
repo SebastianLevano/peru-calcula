@@ -12,6 +12,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface PeriodoInfo { nombre: string; inicioEfectivo: string; finEfectivo: string; mesesCompletados: number; diasAdicionales: number; }
 interface CtsRespuesta {
@@ -35,7 +36,7 @@ function defaultPeriodoCts(): 'mayo' | 'noviembre' {
 @Component({
   selector: 'app-cts',
   standalone: true,
-  imports: [ReactiveFormsModule, DatePipe, RouterModule, ResultCardComponent, CalcInputComponent, InputMesesComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, DatePipe, RouterModule, ResultCardComponent, CalcInputComponent, InputMesesComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Calculadora de CTS"
@@ -159,6 +160,8 @@ function defaultPeriodoCts(): 'mayo' | 'noviembre' {
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-cts" />
   `,
 })
 export class CtsComponent implements OnInit, AfterViewInit {
@@ -192,8 +195,8 @@ export class CtsComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     this.seo.set({
-      title: 'Calculadora de CTS — D. Leg. 650',
-      description: 'Calcula tu CTS semestral con horas extras, comisiones, última gratificación y días de falta. Según el D. Leg. 650.',
+      title: 'Calculadora CTS 2026',
+      description: 'Calcula tu CTS al instante según normativa vigente. Con asignación familiar, desglose completo y fuente oficial. Gratis.',
       canonical: '/calculadora-cts',
     });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'cts', modulo: 'laboral' });

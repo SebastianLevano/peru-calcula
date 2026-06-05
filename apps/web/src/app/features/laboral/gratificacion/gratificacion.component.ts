@@ -12,6 +12,7 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 interface PeriodoInfo { nombre: string; inicioEfectivo: string; finEfectivo: string; mesesCompletados: number; diasAdicionales: number; }
 interface GratificacionRespuesta {
@@ -33,7 +34,7 @@ function defaultPeriodoGrati(): 'julio' | 'diciembre' {
 @Component({
   selector: 'app-gratificacion',
   standalone: true,
-  imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, RouterModule, ResultCardComponent, CalcInputComponent, InputMesesComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, RouterModule, ResultCardComponent, CalcInputComponent, InputMesesComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Calculadora de Gratificación"
@@ -130,6 +131,8 @@ function defaultPeriodoGrati(): 'julio' | 'diciembre' {
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-gratificacion" />
   `,
 })
 export class GratificacionComponent implements OnInit, AfterViewInit {
@@ -151,7 +154,7 @@ export class GratificacionComponent implements OnInit, AfterViewInit {
     aportaAEps: [false], diasFaltas: [0, [Validators.min(0)]],
   });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora de Gratificación — Ley 27735', description: 'Calcula tu gratificación de julio o diciembre con bonificación extraordinaria.', canonical: '/calculadora-gratificacion' });
+    this.seo.set({ title: 'Calculadora Gratificación 2026', description: 'Calcula tu gratificación de julio o diciembre con bonificación extraordinaria incluida. Normativa actualizada. Gratis.', canonical: '/calculadora-gratificacion' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'gratificacion', modulo: 'laboral' });
   }
   ngAfterViewInit() {}

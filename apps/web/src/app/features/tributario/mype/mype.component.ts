@@ -10,11 +10,12 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 @Component({
   selector: 'app-mype',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Régimen MYPE Tributario"
@@ -45,6 +46,8 @@ import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.com
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-mype" />
   `,
 })
 export class MypeComponent implements OnInit {
@@ -53,7 +56,7 @@ export class MypeComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<any>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ ingresosNetos: [null as number | null, [Validators.required, Validators.min(1)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora Régimen MYPE Tributario (RMT)', description: 'Calcula el pago a cuenta mensual en el Régimen MYPE Tributario. Tramos 10% y 29.5%.', canonical: '/calculadora-mype' });
+    this.seo.set({ title: 'Calculadora Régimen MYPE Tributario 2026', description: 'Calcula tus pagos a cuenta y renta anual en el RMT. Con tramos UIT y tasas vigentes.', canonical: '/calculadora-mype' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'mype', modulo: 'tributario' });
   }
   limpiar() {

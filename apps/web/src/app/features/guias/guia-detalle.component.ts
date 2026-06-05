@@ -1,10 +1,12 @@
-import { Component, inject, signal, OnInit, Input, PLATFORM_ID } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, Input, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser, DatePipe } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { ApiClientService } from '../../core/api-client.service';
 import { SeoService } from '../../core/seo.service';
 import { BadgeComponent } from '../../shared/components/badge.component';
 import { SkeletonComponent } from '../../shared/components/skeleton.component';
+import { calcPorGuia } from '../../shared/calculadoras';
+import { guiasRelacionadas, type GuiaRef } from '../../shared/guias';
 
 interface GuiaDetalle {
   slug: string; titulo: string; resumen: string; cuerpoMarkdown: string;
@@ -52,6 +54,21 @@ interface GuiaDetalle {
             </p>
           </header>
 
+          <!-- CTA a la calculadora relacionada (enlazado interno prominente) -->
+          @if (calc()) {
+            <a [routerLink]="calc()!.slug"
+               class="group mt-6 flex items-center justify-between gap-4 rounded-card border border-primary-200 bg-primary-50 p-5
+                      hover:border-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+              <span class="text-sm">
+                <span class="block font-semibold text-primary-800">{{ calc()!.titulo }}</span>
+                <span class="text-primary-700">Hazlo automáticamente con la calculadora.</span>
+              </span>
+              <span class="shrink-0 rounded-input bg-primary-700 px-4 py-2 text-sm font-semibold text-white group-hover:bg-primary-800">
+                Calcula ahora →
+              </span>
+            </a>
+          }
+
           <!-- Contenido renderizado: SSR entrega HTML al crawler; browser lo sanitiza con DOMPurify -->
           <div class="prose prose-stone mt-8 max-w-none
                       prose-headings:font-display prose-headings:text-ink-900
@@ -59,6 +76,25 @@ interface GuiaDetalle {
                       prose-strong:text-ink-900 prose-code:text-ink-700"
                [innerHTML]="htmlSanitizado()">
           </div>
+
+          <!-- Guías relacionadas al pie -->
+          @if (relacionadas().length) {
+            <footer class="mt-12 border-t border-line pt-6">
+              <h2 class="font-display text-lg font-semibold text-ink-900">Guías relacionadas</h2>
+              <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+                @for (g of relacionadas(); track g.slug) {
+                  <li>
+                    <a [routerLink]="['/guias', g.slug]"
+                       class="block rounded-card border border-line bg-surface p-4 text-sm font-medium text-ink-800 shadow-card
+                              hover:border-primary-200 hover:text-primary-700
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600">
+                      {{ g.titulo }} →
+                    </a>
+                  </li>
+                }
+              </ul>
+            </footer>
+          }
         </article>
       }
     </main>
@@ -73,6 +109,10 @@ export class GuiaDetalleComponent implements OnInit {
   readonly guia            = signal<GuiaDetalle | null>(null);
   readonly cargando        = signal(true);
   readonly htmlSanitizado  = signal('');
+
+  // Enlazado interno (estático, siempre presente para el crawler)
+  readonly calc         = computed(() => { const g = this.guia(); return g ? calcPorGuia(g.slug) ?? null : null; });
+  readonly relacionadas = computed<GuiaRef[]>(() => { const g = this.guia(); return g ? guiasRelacionadas(g.slug, 2) : []; });
 
   ngOnInit() {
     this.api.get<GuiaDetalle>(`/guias/${this.slug}`).subscribe({

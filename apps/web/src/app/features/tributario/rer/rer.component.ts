@@ -10,11 +10,12 @@ import { AlertComponent } from '../../../shared/components/alert.component';
 import { EmptyStateComponent } from '../../../shared/components/empty-state.component';
 import { AdsSlotComponent } from '../../../shared/components/ads-slot.component';
 import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.component';
+import { CalcRelatedComponent } from '../../../shared/ui/calc-related.component';
 
 @Component({
   selector: 'app-rer',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent],
+  imports: [ReactiveFormsModule, RouterModule, ResultCardComponent, CalcInputComponent, AlertComponent, EmptyStateComponent, AdsSlotComponent, CalcPageHeaderComponent, CalcRelatedComponent],
   template: `
     <app-calc-page-header
       titulo="Calculadora RER"
@@ -48,6 +49,8 @@ import { CalcPageHeaderComponent } from '../../../shared/ui/calc-page-header.com
         <app-ads-slot size="banner" />
       }
     </main>
+
+    <app-calc-related slug="/calculadora-rer" />
   `,
 })
 export class RerComponent implements OnInit {
@@ -56,7 +59,7 @@ export class RerComponent implements OnInit {
   readonly calculando = signal(false); readonly resultado = signal<any>(null); readonly error = signal<string | null>(null);
   readonly form = this.fb.group({ ingresosMensuales: [null as number | null, [Validators.required, Validators.min(1)]] });
   ngOnInit() {
-    this.seo.set({ title: 'Calculadora RER', description: 'Calcula el pago mensual del Régimen Especial de Renta (RER): 1.5% de ingresos netos.', canonical: '/calculadora-rer' });
+    this.seo.set({ title: 'Calculadora RER 2026', description: 'Calcula tu impuesto mensual en el Régimen Especial de Renta. Verificación de tope anual incluida.', canonical: '/calculadora-rer' });
     this.analytics.track({ tipoEvento: 'inicio', calculadoraSlug: 'rer', modulo: 'tributario' });
   }
   limpiar() {
